@@ -6,7 +6,7 @@
 
 输入内容特征 → 自动匹配版式 → 输出可直接使用的结构化提示词
 
-<sub>面向 GPT Image 2 / 2.5 · 适配 Claude Code / WorkBuddy 等支持 Skill 机制的 Agent 环境</sub>
+<sub>面向 GPT Image 2 / 2.5 · 标准 <code>SKILL.md</code> 结构 · 任何支持 Skill 机制的 Agent 都能加载</sub>
 
 <br>
 
@@ -22,7 +22,7 @@
 
 ## 这是什么
 
-一个**生图提示词决策体系**，以 Skill 的形式挂载到 Agent 上。
+一个**生图提示词决策体系**，以标准 `SKILL.md` 的形式挂载到 Agent 上——**不绑定任何特定平台**，任何支持 Skill 机制的 Agent（Claude Code / WorkBuddy / Cursor 等）都能直接加载。
 
 它不生成图片，也不替代模型。它解决的是写生图提示词时最耗时的两件事——**选什么版式**、**怎么把约束组织清楚**——把这件事从"凭感觉试"变成"查表执行"。
 
@@ -45,6 +45,16 @@
 ## 快速开始
 
 ### 1 · 安装到 Agent 的技能目录
+
+> 技能目录因 Agent 而异。下文命令以 **WorkBuddy / CodeBuddy**（`~/.workbuddy/skills/`）为例，其他环境替换成各自的技能目录即可：
+>
+> | Agent 环境 | 技能目录 |
+> |---|---|
+> | WorkBuddy / CodeBuddy | `~/.workbuddy/skills/` |
+> | Claude Code | `~/.claude/skills/` |
+> | 其他 | 见该 Agent 文档里 Skill / 技能目录的约定 |
+>
+> 本仓库所有路径示例均沿用 `~/.workbuddy/skills/`，按你的环境替换即可。
 
 **方式 A — git clone（推荐，便于后续自动更新）**
 
