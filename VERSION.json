@@ -1,9 +1,11 @@
 {
   "schema": 1,
   "skill": "gpt-image-prompt",
-  "version": "3.3.3",
-  "updated_at": "2026-10-10T11:24:07+08:00",
+  "version": "3.4.0",
+  "updated_at": "2026-10-10T11:28:46+08:00",
   "changelog": [
+    "变更：工具链数据目录与 Agent 平台解耦，PAT 配置/更新备份/每日打卡/审计日志统一迁到 ~/.gpt-image-prompt/（可用 GPT_IMAGE_PROMPT_HOME 覆盖）",
+    "新增：旧版 ~/.workbuddy 下的数据首次运行自动迁移（只复制不删除，旧文件保留）",
     "文档：README 去除平台绑定表述，明确本技能是标准 SKILL.md 结构，任何支持 Skill 机制的 Agent 均可加载",
     "文档：仓库简介去掉「（WorkBuddy Skill）」字样，安装说明补充各 Agent 技能目录对照",
     "修复：陈旧文件清理失效（覆盖 VERSION.json 后才读旧清单，导致旧版受管文件永不清理）",
@@ -12,16 +14,16 @@
   ],
   "files": {
     ".gitignore": "sha256:1177796a70a85cd0fc01151a23bce4d3140c88acd9ee90f370e23fba80c7923e",
-    "CHANGELOG.md": "sha256:a50902d7db06bad70247f457e6a885aca905b0e4f57d60da9981fb27c20343ac",
-    "README.md": "sha256:8d7e232af4bd8ddd2cdf098eb3478539e7f5b8025ef4eed9dff207098ea3344d",
-    "SKILL.md": "sha256:295fbe95bf639673c6ee9e2619f42e798fa9dc490f4dc7d3b1415d76307aa3d7",
+    "CHANGELOG.md": "sha256:28025b1ebf0928b6d2e7a2fdbf8d819899a160b6ccc2b336cd0e5413858b04ce",
+    "README.md": "sha256:654ff849fc8ec0accc8fb87ad81b0837f3029bb005f6a33afb35fd718e12369a",
+    "SKILL.md": "sha256:c4b09ca7fc8818c91c02d015247587875fb6faeb9fe618b4988aeb47580a185b",
     "references/GPT-Image-2-提示词完整指南.md": "sha256:fe7bc9213b60b3addd12685def6967cdf6d99dc06c280de83d417f29fa83301f",
     "references/收录评估标准.md": "sha256:ab3ef47599858a5d67fc1de88e60279b9d4c1c6b3e5eb0b2c947784ec40d858e",
     "tools/__init__.py": "sha256:b04d235870a77f8bfcce7604ef5d5da725c082dad30cd47c2e6074f1d31a383d",
-    "tools/gh_client.py": "sha256:c055d19d54d97c220d778d50f5416d46927c6b21c4e1257a603cf7ff355c9284",
-    "tools/github_sync.py": "sha256:6c0765c05f79b8baeec3c22690d3c4a0722ee4f86b7b822d78709f9e935656ca",
-    "tools/github_version_check.py": "sha256:7dfeb4d7ad4b96014dfb495bf67f012422f70ccace32f0cc855266e060cc6f25",
-    "tools/image_intake.py": "sha256:5226c0fe5383c429094d094e1dccc5abc46fa754194e6d4da298480fd12a865a",
+    "tools/gh_client.py": "sha256:9012bad432696ec69442e5b2accc6b0b988b511ccd1f3512fe3cdb45bb2d5f1a",
+    "tools/github_sync.py": "sha256:c9b02d0dc26abf51d2c71b7635ed7a5954850a7a92c933ab3a057e7a237dbdc5",
+    "tools/github_version_check.py": "sha256:2e5847c5442af69e4babbc3b9cdd4fa589d4c1d749534826ef2b2bdd7fd214e3",
+    "tools/image_intake.py": "sha256:947d572043b8da6f67be38a441406e0523994c844c73f70babfbc53b7b7af4a2",
     "tools/startup_check.py": "sha256:dda1d4a6c08a91b51d2f88c4e6b87605b9a6fb2b4b8911f41fbf3e062f2f40af",
     "tools/summon.py": "sha256:dc133b8263c8014a5d03461dfc03bb5de869a54fca35b447227dd2e5f3523b1a"
   }
