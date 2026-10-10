@@ -502,6 +502,16 @@ git clone https://github.com/HTBjiangnan/gpt-image-prompt.git \
 </details>
 
 <details>
+<summary><b>Q：只是改错别字 / 更新 README，会不会让所有装了本技能的电脑都更新一遍？</b></summary>
+
+不会。`README.md`、`CHANGELOG.md`、`LICENSE`、`.gitignore` 属**文档类文件**，它们的改动
+**不递增版本号**（只 +1 一个内部修订号 `rev`）。其他电脑核对时看到版本相同 → **什么都不做**，
+仓库页面照样显示最新内容。
+
+只有会改变 Agent 实际表现的文件（`SKILL.md`、`references/**`、`tools/**`）变化，才递增版本号并触发自动更新。
+</details>
+
+<details>
 <summary><b>Q：支持哪些模型？</b></summary>
 
 主要面向 **GPT Image 2 / 2.5**，模板里含 2.5 的专属补充规则。但提示词结构本身（风格 → 构图 → 内容 → 约束 → 比例）对多数生图模型通用。
