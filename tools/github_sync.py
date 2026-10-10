@@ -33,7 +33,7 @@ BACKUP_ROOT = os.path.join(os.path.expanduser("~"), ".workbuddy", "skills", ".ba
                            os.path.basename(SKILL_ROOT))
 KEEP_BACKUPS = 10
 
-EXCLUDE_DIRS = {"__pycache__", ".git", "inbox", ".backups"}
+EXCLUDE_DIRS = {"__pycache__", ".git", ".staged", ".backups"}
 EXCLUDE_FILES = {".DS_Store", "Thumbs.db"}
 EXCLUDE_SUFFIX = (".pyc", ".pyo", ".bak", ".tmp")
 
