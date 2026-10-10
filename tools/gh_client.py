@@ -305,13 +305,20 @@ def probe_all(cfg, force=False):
 # 取文件（多通道）
 # ============================================================
 
-def fetch_file(path, cfg, prefer_channel=None):
-    """按优先级取一个文本文件。返回 (data: bytes|None, channel: str|None, err: str|None)"""
+def fetch_file(path, cfg, prefer_channel=None, only_channel=False):
+    """按优先级取一个文本文件。返回 (data: bytes|None, channel: str|None, err: str|None)
+
+    only_channel=True 时只尝试 prefer_channel，不做任何降级
+    （用于跨通道复核，避免降级回有 CDN 缓存的通道）。
+    """
     repo, branch = cfg["repo"], cfg["branch"]
     order = list(CHANNEL_ORDER)
-    if prefer_channel and prefer_channel in order:
-        order.remove(prefer_channel)
+    if prefer_channel:
+        if prefer_channel in order:
+            order.remove(prefer_channel)
         order.insert(0, prefer_channel)
+    if only_channel and prefer_channel:
+        order = [prefer_channel]
 
     errors = []
     for ch in order:
@@ -361,8 +368,8 @@ def _fetch_from_tarball(repo, branch, path, cfg):
         return None, "tarball parse: %s" % e
 
 
-def fetch_json(path, cfg, prefer_channel=None):
-    data, channel, err = fetch_file(path, cfg, prefer_channel)
+def fetch_json(path, cfg, prefer_channel=None, only_channel=False):
+    data, channel, err = fetch_file(path, cfg, prefer_channel, only_channel=only_channel)
     if err:
         return None, None, err
     try:
