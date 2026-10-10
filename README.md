@@ -196,14 +196,40 @@ flowchart TD
     W -->|"远端更新"| X["备份 → 下载 → sha256 校验<br/>→ 逐文件原子覆盖 → 复校"]
     X --> Y["✅ 已更新，报告新版本号"]
     W -->|"一致"| Z["✅ 无需操作"]
+    W -->|"版本相同，仅 rev 增长<br/>（纯文档发布）"| AD["📄 不动，静默忽略<br/>不打扰已安装的副本"]
     W -->|"本地领先"| AA["⚠️ 仅告警，不降级<br/>（实时通道二次复核后仍领先才提示）"]
     V -->|"全部通道失败"| AB["静默跳过<br/>不阻断提示词生成"]
 
     style Y fill:#e8f5e9,stroke:#43a047,color:#1b5e20
     style Z fill:#e8f5e9,stroke:#43a047,color:#1b5e20
+    style AD fill:#eceff1,stroke:#90a4ae,color:#37474f
     style AA fill:#fff4e0,stroke:#f2a33c,color:#7a4a00
     style AB fill:#eceff1,stroke:#90a4ae,color:#37474f
 ```
+
+### 版本号是怎么定的（为什么改个 README 不会打扰别人）
+
+`VERSION.json` 里有两个版本概念，职责严格分开：
+
+| 字段 | 含义 | 什么时候变 |
+|---|---|---|
+| **`version`** | 语义版本，**自动更新的唯一依据** | **只有技能文件**（`SKILL.md` / `references/**` / `tools/**`）变化才递增 |
+| `rev` | 修订号，每次发布 +1 | **任何**改动都 +1（含纯文档），只用于审计与提示 |
+| `release` | 本次发布类型 | `skill`（技能更新）/ `docs`（仅文档） |
+
+按这个规则，文件被分成两类：
+
+| 类别 | 包含 | 改动后果 |
+|---|---|---|
+| **行为文件** | `SKILL.md`、`references/**`、`tools/**` | 递增 `version` → **其他电脑下次加载时自动更新** |
+| **文档文件** | `README.md`、`CHANGELOG.md`、`LICENSE`、`.gitignore` | **不递增 `version`** → 其他电脑**完全不动作**（GitHub 仓库页面照样是最新的） |
+
+发布时（`--push`）会**自动比对远端清单**判定类别，不需要人工声明：
+
+- 行为文件有差异 → 版本号自动 patch +1（想要 minor 用 `--set-version` 显式指定）
+- 只有文档差异 → 版本号保持不变，只 `rev` +1
+- 版本号相同但行为文件仍不一致（发布方漏升版的异常）→ 核对方会**保守按远端同步**，不会长期漂移
+- 想连文档也一起同步到本机：`--update --sync-docs`
 
 ### 多通道降级
 
@@ -228,6 +254,7 @@ flowchart TD
 |---|---|
 | 远端更新 | 自动下载覆盖（先备份 → sha256 校验 → 原子替换 → 复校） |
 | 版本一致 | 不动 |
+| **远端只有文档更新**（`version` 相同、仅 `rev` 增长） | **不动**（不影响技能行为）；要同步用 `--update --sync-docs` |
 | **本地领先** | **只告警，绝不自动降级**（避免抹掉本机未发布的改动） |
 | 校验失败 / 覆盖出错 | 自动从备份还原，并报告失败原因 |
 | 新版本移除了某些文件 | 自动清理（仅限**旧清单里登记过的**受管文件） |
@@ -253,7 +280,8 @@ flowchart TD
 python tools/summon.py --check              # 比对版本（每天第一次联网，其余离线自检）
 python tools/summon.py --check --force-check  # 忽略每日限制，立即联网核对
 python tools/summon.py --update             # 立即核对并自动更新
-python tools/summon.py --status             # 版本 / 通道 / 配置状态
+python tools/summon.py --update --sync-docs  # 连纯文档变更也一起同步
+python tools/summon.py --status             # 版本 / 修订 / 通道 / 配置状态
 python tools/summon.py --status --probe-channels  # 附带通道探测
 python tools/summon.py --probe              # 只探测各通道连通性
 python tools/summon.py --audit              # 公开前自检（扫令牌/绝对路径/内网地址/敏感词）
@@ -266,7 +294,7 @@ python tools/summon.py --help               # 完整帮助
 
 | 码 | 含义 |
 |---|---|
-| `0` | 一致 / 成功 |
+| `0` | 一致 / 成功（含「远端只有文档构建更新」，不更新） |
 | `10` | 本地落后（已更新 或 提示可更新） |
 | `11` | 本地领先（只告警，未改动） |
 | `20` | 网络不可用 |
@@ -368,6 +396,10 @@ python tools/summon.py --intake abort <stage_id>              # 放弃
 2. **每天第一次**加载时联网，把本地版本与远端 `VERSION.json` 比对
 3. 远端更新 → 自动备份并覆盖 → 报告新版本号；一致 → 静默通过
 4. 当日后续加载不再联网，只做离线一致性自检（不卡顿）
+
+**什么**不会**触发自动更新**：如果某次发布只改了 README / CHANGELOG 这类文档，发布方**不升版本号**
+（只 +1 一个内部修订号 `rev`）。其他电脑加载时看到版本相同 → **什么都不做**，仓库页面照样是最新的。
+也就是说：改错别字不会惊动任何人。（想主动同步这类文档改动：`--update --sync-docs`）
 
 > 一次更新通常 **3 秒左右**完成（一次拉整包 → sha256 校验 → 备份 → 原子覆盖 → 复校）。
 > 如果本地已是最新，则**完全不写磁盘**。
