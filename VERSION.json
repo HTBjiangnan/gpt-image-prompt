@@ -1,22 +1,19 @@
 {
   "schema": 1,
   "skill": "gpt-image-prompt",
-  "version": "3.2.2",
-  "updated_at": "2026-10-10T10:06:51+08:00",
+  "version": "3.3.0",
+  "updated_at": "2026-10-10T10:09:52+08:00",
   "changelog": [
-    "【设计变更】收录候选不再向仓库提交图片二进制，改为纯文字评论（技能沉淀物是文字模板）",
-    "去重依据从「远端 inbox 文件」改为「追踪 Issue 评论中的图片指纹」",
-    "移除 inbox/ 目录与 inbox_dir 配置项，暂存目录改为技能根目录下 .staged/",
-    "修复：render_comment 读取尚未赋值的 submitted_at 导致 KeyError",
-    "修复：URL 含中文路径时未做百分号编码导致 UnicodeEncodeError（网络层统一处理）",
-    "修复：raw/jsdelivr 的 CDN 缓存会把「已一致」误判为「本地领先」；现自动用实时通道复核",
-    "通道顺序调整为 raw -> api -> codeload -> jsdelivr（缓存通道降为兜底）",
-    "新增：push 支持远端仓库不存在时自动创建"
+    "新增 CHANGELOG.md：人类可读的版本变更记录",
+    "README 全面重写：新增工作原理流程图、通道降级说明、返回码表、收录评估流程图、FAQ",
+    "README 新增「如何把已安装的副本更新到最新版本」专章（三种情况的处理方式）",
+    "README 新增「给 Agent 的说明（For AI Agents）」小节"
   ],
   "files": {
     ".gitignore": "sha256:1177796a70a85cd0fc01151a23bce4d3140c88acd9ee90f370e23fba80c7923e",
-    "README.md": "sha256:f467860f86351f38adbc5f6a7a60adf9dd125ac2ae6456d53c52de9288cdeeef",
-    "SKILL.md": "sha256:09434dafee67b00d0d890dcd1c2317edf24462420172325ad3142165dfb29b60",
+    "CHANGELOG.md": "sha256:6bda8608d4ca0e129ed11cd8325ce2a6ec38e4996fa2e60bc484ae7e712f87c4",
+    "README.md": "sha256:37e857f00087b4f013592ab24383f5b1c1eae4a4ec01103c95566d4f48b38275",
+    "SKILL.md": "sha256:90a832eb15f300e29023b40be64e46f034b374b1aec92cb52b4684d0be93e4ca",
     "references/GPT-Image-2-提示词完整指南.md": "sha256:fe7bc9213b60b3addd12685def6967cdf6d99dc06c280de83d417f29fa83301f",
     "references/收录评估标准.md": "sha256:ab3ef47599858a5d67fc1de88e60279b9d4c1c6b3e5eb0b2c947784ec40d858e",
     "tools/__init__.py": "sha256:b04d235870a77f8bfcce7604ef5d5da725c082dad30cd47c2e6074f1d31a383d",
