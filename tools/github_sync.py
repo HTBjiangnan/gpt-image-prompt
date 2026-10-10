@@ -376,10 +376,19 @@ def push(cfg, message=None, set_version=None, ensure=True, private=False):
     if not version:
         return False, "无法确定版本号，请用 --set-version 指定"
 
+    # 顺序很关键：必须先把 frontmatter 里的版本号改好，再计算 sha256 清单。
+    # 反过来会导致清单里记录的 SKILL.md 哈希与实际文件不符，
+    # 下游的自动更新会在 sha256 校验环节整包拒绝。
+    _write_frontmatter_version(version)
     manifest = build_manifest(SKILL_ROOT, version=version)
     with open(VERSION_JSON, "w", encoding="utf-8") as f:
         json.dump(manifest, f, ensure_ascii=False, indent=2)
-    _write_frontmatter_version(version)
+
+    # 推送前自检：清单必须与磁盘实际内容一致，否则中止（防止发布出"自相矛盾"的版本）
+    bad = verify_manifest(SKILL_ROOT, manifest)
+    if bad:
+        return False, "清单与文件不一致，已中止推送：%s" % "; ".join(
+            "%s(%s)" % (r, d[:20]) for r, _e, d in bad[:3])
 
     paths = list(manifest["files"].keys()) + ["VERSION.json"]
     msg = message or ("sync %s v%s" % (manifest["skill"], version))
