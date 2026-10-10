@@ -4,7 +4,7 @@
 职责：
 1. 读取/写入凭据配置（默认位于 ~/.workbuddy/skill_github_config.json，不在技能目录内）
 2. 显式绕过失效的环境代理（http_proxy/https_proxy），必要时自动回退到代理
-3. 多通道探测与降级：raw -> jsdelivr -> codeload -> api(免鉴权) -> api(鉴权)
+3. 多通道探测与降级：raw -> api(免鉴权) -> codeload -> jsdelivr(兜底，有 CDN 缓存)
 4. 封装 GitHub REST API（读文件、写文件、建 Issue、发评论）
 
 仅使用 Python 标准库，无第三方依赖。
