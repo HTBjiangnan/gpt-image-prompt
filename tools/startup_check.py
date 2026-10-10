@@ -3,7 +3,7 @@
 
 每次加载技能时运行，共 3 项：
   1. 版本自检（本地 vs GitHub，可自动更新）
-  2. 网络通道探测（raw / jsdelivr / codeload / api）
+  2. 网络通道探测（raw / api / codeload / jsdelivr）
   3. 提交凭据状态（PAT；缺失则降级为只读）
 
 结构对齐 数据分析/tools/startup_check.py：{all_ok, items:[{name,status,message,detail}]}
