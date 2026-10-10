@@ -181,14 +181,22 @@ def read_local_manifest():
 # 远端版本读取
 # ============================================================
 
-def fetch_remote_manifest(cfg, prefer_channel=None):
+def fetch_remote_manifest(cfg, prefer_channel=None, only_channel=False):
     """返回 (manifest: dict|None, channel: str|None, err: str|None)"""
-    data, channel, err = gh.fetch_json(VERSION_REMOTE_PATH, cfg, prefer_channel=prefer_channel)
+    data, channel, err = gh.fetch_json(VERSION_REMOTE_PATH, cfg,
+                                       prefer_channel=prefer_channel,
+                                       only_channel=only_channel)
     if err:
         return None, channel, err
     if not isinstance(data, dict) or not data.get("version"):
         return None, channel, "远端 VERSION.json 缺少 version 字段"
     return data, channel, None
+
+
+# 存在 CDN 缓存、可能读到旧版本的通道（raw ≈ 5 分钟，jsdelivr ≈ 12 小时）
+CACHED_CHANNELS = ("raw", "jsdelivr")
+# 实时、无缓存，用于交叉复核
+FRESH_CHANNELS = ("api", "codeload")
 
 
 # ============================================================
@@ -247,6 +255,22 @@ def check_version(cfg=None, auto_update=False, force_channel=None, verbose=False
 
     # ---- 4. 比较 ----
     cmp = version_compare(local_version, remote_version)
+
+    # 缓存通道（raw ≈ 5 分钟 / jsdelivr ≈ 12 小时）在刚发布后可能读到旧版本，
+    # 会把"其实已一致"误判成"本地领先"。因此仅在判定本地领先时，
+    # 用实时通道（api / codeload，仅单通道不降级）复核一次。
+    if cmp > 0 and channel in CACHED_CHANNELS:
+        for ch in FRESH_CHANNELS:
+            m2, ch2, err2 = fetch_remote_manifest(cfg, prefer_channel=ch, only_channel=True)
+            if err2 or not m2:
+                continue
+            cmp2 = version_compare(local_version, m2["version"])
+            if cmp2 <= 0:
+                remote, channel = m2, ch2
+                cmp = cmp2
+                result["remote_version"] = m2["version"]
+                result["channel"] = ch2
+            break
 
     if cmp == 0:
         result.update(status="ok", action="match",
