@@ -6,6 +6,11 @@
 - 本模块负责：指纹去重、闸门/评分校验、暂存、两阶段确认、提交、审计
   （保持纯标准库，不做任何视觉推理）
 
+重要：本技能不向仓库提交图片二进制。
+技能沉淀物是**文字模板**（SKILL.md / references/），图片仅作为 Agent 的
+判断输入，评估结论以纯文字评论写入追踪 Issue。因此仓库体积零增长，
+也不依赖任何图床或图片外链。
+
 严格判定两层：
   第一层 硬否决闸门 G1..G6 —— 任一命中直接拒绝，不进入打分
   第二层 严格打分 5 个维度，收录线 75 分（边缘档 60-74 默认不提交）
@@ -18,7 +23,6 @@ CLI:
 """
 
 import argparse
-import base64
 import hashlib
 import json
 import os
@@ -34,7 +38,7 @@ except ImportError:
     import github_sync as sync
 
 SKILL_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-STAGE_DIR = os.path.join(SKILL_ROOT, "inbox", ".staged")
+STAGE_DIR = os.path.join(SKILL_ROOT, ".staged")
 AUDIT_LOG = os.path.join(os.path.expanduser("~"), ".workbuddy", "skill_github_audit.jsonl")
 
 TRACKING_ISSUE_TITLE = "【收录候选】候选图片追踪（本技能自动创建，请勿删除）"
@@ -71,24 +75,6 @@ def image_fingerprint(path):
         for chunk in iter(lambda: f.read(65536), b""):
             h.update(chunk)
     return h.hexdigest()
-
-
-def _slugify(text, maxlen=24):
-    keep = []
-    for ch in str(text or ""):
-        if ch.isalnum() or ch in "-_":
-            keep.append(ch)
-        elif ch.isspace():
-            keep.append("-")
-    s = "".join(keep).strip("-")
-    while "--" in s:
-        s = s.replace("--", "-")
-    return (s[:maxlen] or "image").strip("-")
-
-
-def _rel_inbox_name(sha, title, ext):
-    day = time.strftime("%Y-%m-%d")
-    return "inbox/%s/%s-%s%s" % (day, sha[:16], _slugify(title, 20), ext)
 
 
 # ============================================================
@@ -184,10 +170,8 @@ def stage(image_path, assessment_path, cfg=None):
         return result
 
     sha = image_fingerprint(image_path)
-    ext = os.path.splitext(image_path)[1].lower() or ".png"
-    title = str(assessment.get("title") or "候选图片").strip()
+    title = str(assessment.get("title") or "候选版式").strip()
     result["sha256"] = sha
-    result["proposed_path"] = _rel_inbox_name(sha, title, ext)
 
     # ---- 第一层闸门 ----
     failed = check_gates(assessment)
@@ -231,8 +215,6 @@ def stage(image_path, assessment_path, cfg=None):
         "created_at": time.strftime("%Y-%m-%d %H:%M:%S"),
         "image_path": os.path.abspath(image_path),
         "sha256": sha,
-        "ext": ext,
-        "proposed_path": result["proposed_path"],
         "title": title,
         "scores": scores,
         "reasons": (assessment.get("scores") or {}).get("reasons") or {},
@@ -250,18 +232,18 @@ def stage(image_path, assessment_path, cfg=None):
     with open(os.path.join(STAGE_DIR, stage_id + ".json"), "w", encoding="utf-8") as f:
         json.dump(record, f, ensure_ascii=False, indent=2)
 
-    # 去重检查（本地暂存 + 远端 inbox）
+    # 去重检查（本地暂存 + 远端追踪 Issue 评论）
     cfg = cfg or gh.load_config()
-    dup_remote, dup_err = remote_inbox_has(sha, cfg)
+    dup_remote, dup_err = remote_has_fingerprint(sha, cfg)
     dup_local = _local_dup(sha, exclude=stage_id)
 
     result.update(stage_id=stage_id, verdict=band, return_code=RET_PENDING,
                   message="评估完成：%s（%d/100）" % (band_label, total),
-                  detail="拟提交路径 %s" % result["proposed_path"])
+                  detail="拟提交内容：文字结论（评分 + 判定 + 模板骨架），不含图片")
     if dup_local or dup_remote:
         result.update(return_code=RET_DUP,
-                      message="重复图片：%s（跳过提交）" % ("远端已收录" if dup_remote else "本地暂存已存在"),
-                      detail=dup_err or result["proposed_path"])
+                      message="重复图片：%s（跳过提交）" % ("远端追踪 Issue 已收录" if dup_remote else "本地暂存已存在"),
+                      detail=dup_err or "")
     result["preview"] = render_preview(record)
     _audit("stage_ok", sha, total, band, None, None)
     return result
@@ -282,21 +264,23 @@ def _local_dup(sha, exclude=None):
     return False
 
 
-def remote_inbox_has(sha, cfg):
-    """扫描远端 inbox/ 是否存在同指纹文件名。返回 (bool, err)"""
-    url = "https://api.github.com/repos/%s/contents/inbox" % cfg["repo"]
-    data, err = gh.http_request("GET", url, cfg=cfg, headers=gh._auth_headers(cfg))
+def remote_has_fingerprint(sha, cfg):
+    """扫描追踪 Issue 的评论，判断该指纹是否已提交过。
+
+    本技能不向仓库提交图片二进制（技能沉淀物是文字模板），
+    因此去重依据是"评论正文里的指纹"，而非仓库文件。
+    返回 (bool, err)
+    """
+    issue_no = cfg.get("issue_number")
+    if not issue_no:
+        return False, None
+    comments, err = gh.api_list_comments(issue_no, cfg)
     if err:
         return False, err
-    if not isinstance(data, list):
-        return False, None
     prefix = sha[:16]
-    for item in data:
-        name = item.get("name", "")
-        if prefix in name:
+    for c in comments or []:
+        if prefix in (c.get("body") or ""):
             return True, None
-        if item.get("type") == "dir":
-            pass
     return False, None
 
 
@@ -312,7 +296,8 @@ def render_preview(record):
     lines.append("② 差距/改进点：%s" % (record["gap"] or "（未填）"))
     lines.append("③ 拟新增模板：%s" % (record["proposed_template_number"] or "（未填）"))
     lines.append("")
-    lines.append("拟提交文件名：%s" % record["proposed_path"])
+    lines.append("拟提交内容：追踪 Issue 中的一条文字评论（评分 + 判定 + 模板骨架）")
+    lines.append("图片指纹：%s" % record["sha256"][:16])
     lines.append("拟提交模板骨架：")
     lines.append(record["proposed_template"])
     if record.get("band") == "borderline":
@@ -351,37 +336,26 @@ def commit(stage_id, confirm=False, force=False, cfg=None):
         result["message"] = "缺少 PAT，无法提交（只读模式）。请在 %s 配置 token。" % gh.CONFIG_PATH
         return result
 
-    # 去重复检
-    dup, _ = remote_inbox_has(rec["sha256"], cfg)
+    # 去重复检（依据：追踪 Issue 评论中已有的指纹）
+    dup, _ = remote_has_fingerprint(rec["sha256"], cfg)
     if dup:
-        result.update(return_code=RET_DUP, message="远端已存在同指纹图片，跳过提交")
+        result.update(return_code=RET_DUP,
+                      message="该图已提交过（追踪 Issue 中已有同指纹候选），跳过")
         return result
 
-    with open(rec["image_path"], "rb") as f:
-        blob = f.read()
-
-    # 1) 落图到 inbox/
-    resp, err = gh.api_put_file(rec["proposed_path"], blob,
-                                "inbox: add candidate %s" % rec["sha256"][:16], cfg)
-    if err:
-        if "422" in err:
-            result.update(return_code=RET_DUP, message="远端已存在该文件，跳过")
-            return result
-        result["message"] = "图片上传失败: %s" % err
-        return result
-    commit_sha = (resp or {}).get("commit", {}).get("sha", "")
-    blob_url = (resp or {}).get("content", {}).get("html_url") or \
-        "https://github.com/%s/blob/%s/%s" % (cfg["repo"], cfg["branch"], rec["proposed_path"])
-
-    # 2) 评论进固定追踪 Issue
+    # 1) 固定追踪 Issue（不存在则创建）
     issue_no = cfg.get("issue_number")
     if not issue_no:
-        issue, err = gh.api_create_issue(TRACKING_ISSUE_TITLE,
-                                         "本 Issue 用于追踪通过 `gpt-image-prompt` 技能提交的候选图片。\n"
-                                         "仅由技能自动追加评论，请勿删除。",
-                                         cfg, labels=[TRACKING_ISSUE_LABEL])
+        issue, err = gh.api_create_issue(
+            TRACKING_ISSUE_TITLE,
+            "本 Issue 用于追踪经 `gpt-image-prompt` 技能评估通过的候选版式。\n\n"
+            "每条评论 = 一条候选：评分明细、判定、以及**拟新增的模板骨架**。\n"
+            "技能沉淀物是文字模板（SKILL.md / references/），"
+            "因此评论只保留文字结论，不附带图片二进制。\n\n"
+            "评论由技能自动追加，请勿删除。",
+            cfg, labels=[TRACKING_ISSUE_LABEL])
         if err:
-            result["message"] = "创建追踪 Issue 失败: %s（图片已上传，可重跑 commit）" % err
+            result["message"] = "创建追踪 Issue 失败: %s" % err
             return result
         issue_no = issue.get("number")
         cfg["issue_number"] = issue_no
@@ -390,15 +364,16 @@ def commit(stage_id, confirm=False, force=False, cfg=None):
         except Exception:
             pass
 
-    body = render_comment(rec, blob_url)
+    # 2) 追加纯文字评论（不上传图片）
+    rec["submitted_at"] = time.strftime("%Y-%m-%d %H:%M:%S")
+    body = render_comment(rec)
     comment, err = gh.api_create_comment(issue_no, body, cfg)
     if err:
-        result["message"] = "评论失败: %s（图片已上传）" % err
+        result["message"] = "评论失败: %s" % err
         return result
 
     rec["submitted"] = True
-    rec["submitted_at"] = time.strftime("%Y-%m-%d %H:%M:%S")
-    rec["commit_sha"] = commit_sha
+    rec["issue_number"] = issue_no
     rec["comment_url"] = comment.get("html_url", "")
     with open(path, "w", encoding="utf-8") as f:
         json.dump(rec, f, ensure_ascii=False, indent=2)
@@ -406,15 +381,13 @@ def commit(stage_id, confirm=False, force=False, cfg=None):
     _audit("commit_ok", rec["sha256"], rec["total"], rec["band"], issue_no, rec["comment_url"])
     result.update(return_code=RET_OK,
                   message="已提交候选（%d/100）" % rec["total"],
-                  detail="图片: %s\n评论: %s" % (blob_url, rec["comment_url"]))
+                  detail="追踪 Issue #%s 评论: %s" % (issue_no, rec["comment_url"]))
     return result
 
 
-def render_comment(rec, blob_url):
+def render_comment(rec):
     lines = []
     lines.append("### 收录候选 · %s（%d/100）" % (rec["title"], rec["total"]))
-    lines.append("")
-    lines.append("![候选图片](%s)" % blob_url)
     lines.append("")
     lines.append("| 维度 | 得分 |")
     lines.append("|---|---|")
@@ -427,7 +400,7 @@ def render_comment(rec, blob_url):
     lines.append("- ② 差距/改进点：%s" % (rec["gap"] or "—"))
     lines.append("- ③ 拟新增模板：%s" % (rec["proposed_template_number"] or "—"))
     lines.append("- 图片指纹：`%s`" % rec["sha256"][:16])
-    lines.append("- 提交时间：%s" % rec["submitted_at"])
+    lines.append("- 提交时间：%s" % (rec.get("submitted_at") or time.strftime("%Y-%m-%d %H:%M:%S")))
     lines.append("")
     lines.append("**拟新增模板骨架**")
     lines.append("")
