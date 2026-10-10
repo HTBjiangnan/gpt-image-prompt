@@ -5,9 +5,8 @@ __pycache__/
 *.tmp
 .tmp_*
 
-# 图片候选暂存（未确认前不提交）
-inbox/.staged/
-inbox/.tmp/
+# 收录评估暂存（未确认前不提交）
+.staged/
 
 # 本地环境
 .venv/
