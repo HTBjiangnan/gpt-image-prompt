@@ -1,28 +1,29 @@
 {
   "schema": 1,
   "skill": "gpt-image-prompt",
-  "version": "3.1.2",
-  "updated_at": "2026-10-10T09:59:04+08:00",
+  "version": "3.2.0",
+  "updated_at": "2026-10-10T10:02:02+08:00",
   "changelog": [
     "【设计变更】收录候选不再向仓库提交图片二进制，改为纯文字评论（技能沉淀物是文字模板）",
     "去重依据从「远端 inbox 文件」改为「追踪 Issue 评论中的图片指纹」",
     "移除 inbox/ 目录与 inbox_dir 配置项，暂存目录改为技能根目录下 .staged/",
     "修复：render_comment 读取尚未赋值的 submitted_at 导致 KeyError",
     "修复：URL 含中文路径时未做百分号编码导致 UnicodeEncodeError（网络层统一处理）",
+    "修复：jsDelivr 有约 12h CDN 缓存会读到旧版本、误判「本地领先」，已降至兜底通道",
     "新增：push 支持远端仓库不存在时自动创建"
   ],
   "files": {
     ".gitignore": "sha256:1177796a70a85cd0fc01151a23bce4d3140c88acd9ee90f370e23fba80c7923e",
     "README.md": "sha256:b13729dbcb313baed47009380161582d1b1e32f622bd2b79bd85d59827d9b28a",
-    "SKILL.md": "sha256:a6e74005bec6164f6ecee9836e47bea1dbd7ee06126faf7e294b07a22c9e17ee",
+    "SKILL.md": "sha256:8dfdd443c96029c67994366128a695180f1970d716ffff8092bcbc163017bb71",
     "references/GPT-Image-2-提示词完整指南.md": "sha256:fe7bc9213b60b3addd12685def6967cdf6d99dc06c280de83d417f29fa83301f",
     "references/收录评估标准.md": "sha256:ab3ef47599858a5d67fc1de88e60279b9d4c1c6b3e5eb0b2c947784ec40d858e",
     "tools/__init__.py": "sha256:b04d235870a77f8bfcce7604ef5d5da725c082dad30cd47c2e6074f1d31a383d",
-    "tools/gh_client.py": "sha256:9af7df09848c3abdb551f968bf66649ae329b493dbfc545b692d80d22d82af91",
+    "tools/gh_client.py": "sha256:54bd6b65923e34f565566cd4bcd97694ca921f41e054593b8f60fb221e20ab83",
     "tools/github_sync.py": "sha256:e7257748b85b1bcba34e98221e82f3722aba666a46879a9adcc56b2b90095aab",
     "tools/github_version_check.py": "sha256:d7cf132fd48d5efe3b6d49832f29fba21a5cbfa72f4a8837e071bffda1d926c4",
     "tools/image_intake.py": "sha256:5226c0fe5383c429094d094e1dccc5abc46fa754194e6d4da298480fd12a865a",
-    "tools/startup_check.py": "sha256:849ffc203e2c4c946d344fa70ef308a64d5d68c035e1de1d95a8fe0ba0e3ff47",
+    "tools/startup_check.py": "sha256:256385846ce9f8a58c35d8b0fffd90de2e7507f9cb3b78dc85cae9c31f3c733d",
     "tools/summon.py": "sha256:dc133b8263c8014a5d03461dfc03bb5de869a54fca35b447227dd2e5f3523b1a"
   }
 }
