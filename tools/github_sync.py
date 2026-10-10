@@ -29,8 +29,8 @@ except ImportError:
 
 SKILL_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 VERSION_JSON = os.path.join(SKILL_ROOT, "VERSION.json")
-BACKUP_ROOT = os.path.join(os.path.expanduser("~"), ".workbuddy", "skills", ".backups",
-                           os.path.basename(SKILL_ROOT))
+# 备份根目录由数据目录统一管理（见 gh_client.DATA_HOME），不依赖技能安装位置
+BACKUP_ROOT = gh.BACKUP_ROOT
 KEEP_BACKUPS = 10
 
 EXCLUDE_DIRS = {"__pycache__", ".git", ".staged", ".backups"}
@@ -171,6 +171,7 @@ def _extract_from_tarball(data, paths):
 # ============================================================
 
 def _backup():
+    gh.ensure_data_home()
     os.makedirs(BACKUP_ROOT, exist_ok=True)
     ts = time.strftime("%Y%m%d-%H%M%S")
     dest = os.path.join(BACKUP_ROOT, ts)
