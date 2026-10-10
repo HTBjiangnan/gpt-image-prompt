@@ -109,18 +109,25 @@ def verify_manifest(root, manifest):
 
 def download_all(cfg, paths, channel=None):
     """返回 ({rel: bytes}, channel_used, err)"""
-    # codeload 通道：一次拉整包，效率最高
-    if channel == "codeload":
+    pre_errors = []
+    # codeload 通道：一次拉整包，效率最高。
+    # 多文件时也无条件优先整包——逐个文件走通道会放大网络抖动
+    # （实测：13 个文件逐个下载累计 >100s，而整包只需 0.8s）
+    if channel == "codeload" or len(paths) > 1:
         data, err = _tarball_bytes(cfg)
         if not err:
             got, missing = _extract_from_tarball(data, paths)
             if not missing:
                 return got, "codeload", None
-            err = "tarball 缺少文件: %s" % ", ".join(missing)
-        channel = None  # 降级
+            pre_errors.append("codeload 缺少文件: %s" % ", ".join(sorted(missing)))
+        else:
+            pre_errors.append("codeload: %s" % err)
+        if channel == "codeload":
+            return {}, None, "; ".join(pre_errors)
+        channel = None  # 整包不可用 → 降级为逐文件按通道取
 
     got = {}
-    errors = []
+    errors = list(pre_errors)
     used = None
     for rel in paths:
         data, ch, err = gh.fetch_file(rel, cfg, prefer_channel=channel)
@@ -269,13 +276,15 @@ def apply_remote_update(cfg, remote_manifest, channel=None):
 
     # --提交阶段：备份 -> 逐文件替换 -> 清理陈旧文件 -> 复校 --
     backup_dir = _backup()
+    # 旧清单必须在覆盖前抓取：VERSION.json 本身也在待写入之列，
+    # 覆盖后再读就变成新清单了，陈旧文件将永远清不掉。
+    old_manifest = _local_manifest_old()
     try:
         for rel, data in got.items():
             _atomic_write(rel, data)
 
         # 清理陈旧文件（仅限旧清单里有、新清单里没有的）
-        old = _local_manifest_old()
-        old_files = set((old or {}).get("files", {}).keys()) if old else set()
+        old_files = set((old_manifest or {}).get("files", {}).keys()) if old_manifest else set()
         new_files = set(files.keys())
         for rel in old_files - new_files:
             target = os.path.join(SKILL_ROOT, rel.replace("/", os.sep))
