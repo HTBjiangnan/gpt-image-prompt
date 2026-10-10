@@ -241,8 +241,10 @@ def channel_urls(channel, repo, branch, path):
     raise ValueError("unknown channel: %s" % channel)
 
 
-# 免鉴权通道优先级（raw 最快，jsdelivr 最稳，codeload 整包，api 限流）
-CHANNEL_ORDER = ["raw", "jsdelivr", "codeload", "api"]
+# 免鉴权通道优先级。
+# 注意：jsdelivr 对分支引用有约 12 小时 CDN 缓存，可能读到**旧版本**，
+# 从而把"远端落后"误判成"本地领先"，因此排在最后，仅作兜底。
+CHANNEL_ORDER = ["raw", "api", "codeload", "jsdelivr"]
 
 
 def probe_channel(channel, cfg):
