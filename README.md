@@ -69,8 +69,11 @@ python tools/summon.py --update          # 立即核对并更新
 python tools/summon.py --force-check     # 忽略「每天一次」限制
 ```
 
-网络偶发不通时会自动在多个通道间降级（`raw` → `jsDelivr` → `codeload` → `api`），
+网络偶发不通时会自动在多个通道间降级（`raw` → `api` → `codeload` → `jsdelivr`），
 全部失败也只是跳过核对，不影响提示词生成。
+
+> `raw` 与 `jsdelivr` 带 CDN 缓存（分别约 5 分钟 / 12 小时），刚发布后可能读到旧版本。
+> 因此判定"本地领先"时会自动用实时通道（`api` / `codeload`）复核一次，避免误报。
 
 ---
 
