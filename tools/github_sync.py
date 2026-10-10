@@ -37,6 +37,50 @@ EXCLUDE_DIRS = {"__pycache__", ".git", ".staged", ".backups"}
 EXCLUDE_FILES = {".DS_Store", "Thumbs.db"}
 EXCLUDE_SUFFIX = (".pyc", ".pyo", ".bak", ".tmp")
 
+# ============================================================
+# 文件分类：文档类 vs 行为类
+# ------------------------------------------------------------
+# 「行为类」文件一旦变化，Agent 的实际表现就会不同，必须让其他电脑自动更新；
+# 「文档类」文件只影响仓库页面观感（README / CHANGELOG / 许可证等），
+# 改了**不升版本号**，因此不会去打扰已安装的副本。
+# ============================================================
+
+DOC_ONLY_FILES = {"README.md", "CHANGELOG.md", "LICENSE", ".gitignore"}
+DOC_ONLY_PREFIXES = ("docs/",)
+
+
+def is_behavior_file(rel):
+    """该文件的变化是否需要触发其他电脑的自动更新"""
+    r = str(rel).replace("\\", "/")
+    if r == "VERSION.json":          # 版本文件本身永远是元数据
+        return False
+    if r in DOC_ONLY_FILES or r.startswith(DOC_ONLY_PREFIXES):
+        return False
+    return True
+
+
+def _norm_skill_md(data):
+    """SKILL.md 的 frontmatter 里 version 行本身不算行为变更，比较时抹掉"""
+    try:
+        txt = data.decode("utf-8")
+    except Exception:
+        return hashlib.sha256(data).hexdigest()
+    import re as _re
+    txt = _re.sub(r"(?m)^(\s*version\s*:).*$", r"\1", txt)
+    return hashlib.sha256(txt.encode("utf-8")).hexdigest()
+
+
+def bump_patch(version):
+    """3.4.1 -> 3.4.2（缺段自动补 0；解析失败退化为 0.0.1）"""
+    try:
+        parts = [int(x) for x in str(version).lstrip("vV").split("-")[0].split(".")]
+    except Exception:
+        parts = []
+    while len(parts) < 3:
+        parts.append(0)
+    parts[2] += 1
+    return ".".join(str(x) for x in parts[:3])
+
 
 # ============================================================
 # 清单
@@ -67,7 +111,7 @@ def walk_tracked_files(root=None):
     return sorted(out)
 
 
-def build_manifest(root=None, version=None, changelog=None):
+def build_manifest(root=None, version=None, changelog=None, rev=None, release=None):
     root = root or SKILL_ROOT
     files = {}
     for rel in walk_tracked_files(root):
@@ -83,6 +127,11 @@ def build_manifest(root=None, version=None, changelog=None):
         "schema": 1,
         "skill": os.path.basename(root),
         "version": version or old.get("version") or "0.0.0",
+        # rev：单调递增修订号，每次发布 +1（含纯文档发布）。
+        # 不参与"是否自动更新"的判断，仅用于审计与"远端有更新构建"的提示。
+        "rev": int(rev if rev is not None else (old.get("rev") or 0)),
+        # release：本次发布类型，skill=技能文件变更 / docs=仅文档变更
+        "release": release or old.get("release") or "skill",
         "updated_at": time.strftime("%Y-%m-%dT%H:%M:%S+08:00"),
         "changelog": changelog if changelog is not None else old.get("changelog") or [],
         "files": files,
@@ -368,6 +417,46 @@ def ensure_repo(cfg, private=False):
     return True, "%s，但分支 %s 尚未就绪（稍后重跑 push 即可）" % (msg, cfg["branch"]), True
 
 
+def behavior_diff_vs_remote(cfg, remote_manifest, root=None):
+    """本地 vs 远端：技能行为文件是否有差异。
+
+    返回 (changed: bool, detail: list[str])
+    - 只比「行为类」文件（SKILL.md / references/** / tools/** …）
+    - SKILL.md 的 frontmatter version 行本身不算差异（否则每次升版都误判）
+    - 远端 SKILL.md 内容按需单独拉一次（api 通道，约 0.6s）
+    """
+    root = root or SKILL_ROOT
+    rf = (remote_manifest or {}).get("files") or {}
+    if not rf:
+        return True, ["远端清单为空，按保守策略视为行为有变更"]
+
+    diffs = []
+    remote_skill_md_norm = None
+    for rel in walk_tracked_files(root):
+        if not is_behavior_file(rel):
+            continue
+        cur = "sha256:" + file_sha256(os.path.join(root, rel))
+        if rf.get(rel) == cur:
+            continue
+        if rel == "SKILL.md":
+            # 差异可能仅来自 version 行，拉远端原文去掉 version 行后再比
+            if remote_skill_md_norm is None:
+                data, _ch, err = gh.fetch_file("SKILL.md", cfg)
+                remote_skill_md_norm = _norm_skill_md(data) if (data and not err) else ""
+            if remote_skill_md_norm and remote_skill_md_norm == _norm_skill_md(
+                    open(os.path.join(root, rel), "rb").read()):
+                continue
+        diffs.append(rel)
+
+    # 远端有、本地已删除的行为文件
+    for rel in rf:
+        if not is_behavior_file(rel):
+            continue
+        if not os.path.isfile(os.path.join(root, rel.replace("/", os.sep))):
+            diffs.append(rel + "(本地缺失)")
+    return bool(diffs), diffs
+
+
 def push(cfg, message=None, set_version=None, ensure=True, private=False):
     """把本机技能发布到 GitHub。返回 (ok, detail)"""
     if not gh.has_token(cfg):
@@ -381,21 +470,58 @@ def push(cfg, message=None, set_version=None, ensure=True, private=False):
         if created:
             notes.append(rmsg)
 
-    version = set_version
-    if not version:
+    # ---- 版本决策：只有「行为文件」变更才升版本号 ----
+    local_old = _local_manifest_old() or {}
+    local_version = (local_old.get("version") or "").strip()
+    local_rev = int(local_old.get("rev") or 0)
+
+    remote_manifest, _rch, rerr = gh.fetch_json("VERSION.json", cfg)
+    if not isinstance(remote_manifest, dict):
+        remote_manifest = None
+    remote_version = (remote_manifest or {}).get("version") or ""
+    remote_rev = int((remote_manifest or {}).get("rev") or 0)
+
+    if remote_manifest is None:
+        behavior_changed = True
+        notes.append("⚠️ 未能读取远端 VERSION.json（%s），按保守策略视为技能文件有变更" % (rerr or "不存在"))
+    else:
+        behavior_changed, diffs = behavior_diff_vs_remote(cfg, remote_manifest)
+        if diffs:
+            notes.append("行为文件变更：%s" % ", ".join(diffs[:6]) + (" …" if len(diffs) > 6 else ""))
+
+    # 本地落后于远端时不允许发布（否则会把远端版本"回退"）
+    if remote_version and local_version:
         try:
-            with open(VERSION_JSON, "r", encoding="utf-8") as f:
-                version = json.load(f).get("version")
-        except Exception:
-            version = None
+            from . import github_version_check as _vc
+        except ImportError:
+            import github_version_check as _vc
+        if _vc.version_compare(local_version, remote_version) < 0:
+            return False, ("本地 v%s 低于远端 v%s，请先运行 summon.py --update 再发布"
+                           % (local_version, remote_version))
+
+    if set_version:
+        version, release = set_version, ("skill" if behavior_changed else "docs")
+    elif behavior_changed:
+        if local_version and local_version != remote_version:
+            version = local_version          # 本机已手动升过版，尊重它
+        else:
+            version = bump_patch(remote_version or local_version or "0.0.0")
+            notes.append("行为文件有变更，版本号自动升为 v%s（如属功能新增，建议用 --set-version 指定 minor）" % version)
+        release = "skill"
+    else:
+        version = local_version or remote_version
+        release = "docs"
+        notes.append("仅有文档/元数据变更，版本号保持 v%s 不变 —— 其他电脑不会被触发自动更新" % version)
+
+    rev = max(local_rev, remote_rev) + 1
     if not version:
-        return False, "无法确定版本号，请用 --set-version 指定"
+        return False, "无法确定版本号（本地与远端 VERSION.json 均不可用）"
 
     # 顺序很关键：必须先把 frontmatter 里的版本号改好，再计算 sha256 清单。
     # 反过来会导致清单里记录的 SKILL.md 哈希与实际文件不符，
     # 下游的自动更新会在 sha256 校验环节整包拒绝。
     _write_frontmatter_version(version)
-    manifest = build_manifest(SKILL_ROOT, version=version)
+    manifest = build_manifest(SKILL_ROOT, version=version, rev=rev, release=release)
     with open(VERSION_JSON, "w", encoding="utf-8") as f:
         json.dump(manifest, f, ensure_ascii=False, indent=2)
 
@@ -406,7 +532,8 @@ def push(cfg, message=None, set_version=None, ensure=True, private=False):
             "%s(%s)" % (r, d[:20]) for r, _e, d in bad[:3])
 
     paths = list(manifest["files"].keys()) + ["VERSION.json"]
-    msg = message or ("sync %s v%s" % (manifest["skill"], version))
+    msg = message or ("sync %s v%s%s" % (manifest["skill"], version,
+                                        "" if release == "skill" else " (docs only)"))
     pushed, failed = [], []
     for rel in paths:
         full = os.path.join(SKILL_ROOT, rel.replace("/", os.sep))
@@ -423,7 +550,9 @@ def push(cfg, message=None, set_version=None, ensure=True, private=False):
             pushed.append(rel)
     if failed:
         return False, "；".join(notes + ["部分文件推送失败：%s" % "; ".join(failed[:5])])
-    tail = "已推送 %d 个文件到 %s（v%s）" % (len(pushed), cfg["repo"], version)
+    tail = "已推送 %d 个文件到 %s（v%s · rev %d · %s）" % (
+        len(pushed), cfg["repo"], version, rev,
+        "技能更新，其他电脑会自动跟进" if release == "skill" else "仅文档变更，不触发自动更新")
     return True, "；".join(notes + [tail])
 
 
