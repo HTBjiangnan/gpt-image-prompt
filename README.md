@@ -398,7 +398,7 @@ python tools/summon.py --intake abort <stage_id>              # 放弃
 4. 当日后续加载不再联网，只做离线一致性自检（不卡顿）
 
 **什么**不会**触发自动更新**：如果某次发布只改了 README / CHANGELOG 这类文档，发布方**不升版本号**
-（只 +1 一个内部修订号 `rev`）。也就是说：改错别字不会惊动任何人。（想主动同步这类文档改动：`--update --sync-docs`）
+（只 +1 一个内部修订号 `rev`）。想主动同步这类文档改动，用 `--update --sync-docs`。
 
 > 一次更新通常 **3 秒左右**完成（一次拉整包 → sha256 校验 → 备份 → 原子覆盖 → 复校）。
 > 如果本地已是最新，则**完全不写磁盘**。
@@ -490,16 +490,6 @@ git clone https://github.com/HTBjiangnan/gpt-image-prompt.git \
 <summary><b>Q：收录评估为什么这么严？</b></summary>
 
 模板库是要长期复用的资产，公开仓库里的每条记录都会被别人读到。放低标准的代价是库被稀释——所以设了硬否决闸门（尤其是**中文错字零容忍**）+ 高分阈值，宁可漏收，不可错收。
-</details>
-
-<details>
-<summary><b>Q：只是改错别字 / 更新 README，会不会让所有装了本技能的电脑都更新一遍？</b></summary>
-
-不会。`README.md`、`CHANGELOG.md`、`LICENSE`、`.gitignore` 属**文档类文件**，它们的改动
-**不递增版本号**（只 +1 一个内部修订号 `rev`）。其他电脑核对时看到版本相同 → **什么都不做**，
-仓库页面照样显示最新内容。
-
-只有会改变 Agent 实际表现的文件（`SKILL.md`、`references/**`、`tools/**`）变化，才递增版本号并触发自动更新。
 </details>
 
 <details>
