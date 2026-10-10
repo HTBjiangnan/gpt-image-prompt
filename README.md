@@ -46,21 +46,18 @@
 
 ### 1 · 安装到 Agent 的技能目录
 
-> 技能目录因 Agent 而异。下文命令以 **WorkBuddy / CodeBuddy**（`~/.workbuddy/skills/`）为例，其他环境替换成各自的技能目录即可：
->
-> | Agent 环境 | 技能目录 |
-> |---|---|
-> | WorkBuddy / CodeBuddy | `~/.workbuddy/skills/` |
-> | Claude Code | `~/.claude/skills/` |
-> | 其他 | 见该 Agent 文档里 Skill / 技能目录的约定 |
->
-> 本仓库所有路径示例均沿用 `~/.workbuddy/skills/`，按你的环境替换即可。
+> **技能目录由你所使用的 Agent 决定**——请查阅该 Agent 文档中关于 Skill / 技能目录的约定。
+> 下文统一用 `$SKILLS` 指代该目录，先把下面这行改成你的实际路径：
+
+```bash
+SKILLS="<你的 Agent 技能目录>"
+```
 
 **方式 A — git clone（推荐，便于后续自动更新）**
 
 ```bash
 git clone https://github.com/HTBjiangnan/gpt-image-prompt.git \
-  ~/.workbuddy/skills/gpt-image-prompt
+  "$SKILLS/gpt-image-prompt"
 ```
 
 **方式 B — 下载 ZIP**
@@ -68,7 +65,7 @@ git clone https://github.com/HTBjiangnan/gpt-image-prompt.git \
 在仓库页面点 `Code → Download ZIP`，解压后把整个目录放到：
 
 ```
-~/.workbuddy/skills/gpt-image-prompt/
+$SKILLS/gpt-image-prompt
 ```
 
 > 目录名请保持 `gpt-image-prompt`——技能名、版本文件、自更新逻辑都以它为准。
@@ -76,7 +73,7 @@ git clone https://github.com/HTBjiangnan/gpt-image-prompt.git \
 ### 2 · 验证安装
 
 ```bash
-cd ~/.workbuddy/skills/gpt-image-prompt
+cd "$SKILLS/gpt-image-prompt"
 python tools/summon.py --status
 ```
 
@@ -246,8 +243,7 @@ flowchart TD
 | 每日核对打卡 | `~/.gpt-image-prompt/check_stamp.json` |
 | 审计日志 | `~/.gpt-image-prompt/audit.jsonl` |
 
-> 从 v3.3.3 及更早版本升级上来时，旧位置（`~/.workbuddy/` 下）的数据会在首次运行时
-> **自动复制**到新位置；旧文件保留原样，确认无误后可自行清理。
+> 数据目录与 Agent 平台**完全无关**：无论装到哪个 Agent 的技能目录下，配置、备份、日志都只写这里，不会往 Agent 自己的目录里塞东西。
 
 更新只会触碰技能目录内的文件，**绝不递归删除、绝不触碰技能目录之外的任何路径**。
 
@@ -361,10 +357,12 @@ python tools/summon.py --intake abort <stage_id>              # 放弃
 ## 如何把已安装的副本更新到最新版本
 
 > 这是最常见的疑问：**我的电脑上已经有这个技能了，怎么拿到最新版？**
+>
+> 先给结论——**什么都不用做。** 副本自带更新能力，会自己升到最新。
 
-### 情况 A：副本是 v3.1.0 及以后（带 `tools/` 目录）
+### 自动更新（默认行为，无需干预）
 
-**什么都不用做。** 技能在下一次被 Agent 加载时会自动检查并更新：
+技能在下一次被 Agent 加载时会自动检查并更新：
 
 1. Agent 进入技能 → 按 `SKILL.md` 的「零、启动自检」执行 `--check`
 2. **每天第一次**加载时联网，把本地版本与远端 `VERSION.json` 比对
@@ -374,51 +372,45 @@ python tools/summon.py --intake abort <stage_id>              # 放弃
 > 一次更新通常 **3 秒左右**完成（一次拉整包 → sha256 校验 → 备份 → 原子覆盖 → 复校）。
 > 如果本地已是最新，则**完全不写磁盘**。
 
-想立刻手动更新（不想等下一次加载）：
+### 手动更新（想立刻拿到新版，不想等下次加载）
 
 ```bash
-cd ~/.workbuddy/skills/gpt-image-prompt
+cd "$SKILLS/gpt-image-prompt"
 
-# 只看有没有新版（会忽略"每天一次"限制，立即联网）
+# 只看有没有新版（忽略"每天一次"限制，立即联网）
 python tools/summon.py --check --force-check
 
 # 直接更新
 python tools/summon.py --update
-```
 
-更新完成后用 `--status` 确认：
-
-```bash
+# 确认结果：本地版本 / 远端版本 两行应当一致
 python tools/summon.py --status
-# 本地版本 / 远端版本两行应当一致
 ```
 
-如果更新出问题，备份在原目录同级：
-`~/.gpt-image-prompt/backups/<时间戳>/`，把里面的文件拷回技能目录即可还原。
+更新出问题时，把备份里的文件拷回技能目录即可还原（保留最近 10 份）：
 
-### 情况 B：副本是 v3.0.0（只有单个 `SKILL.md`，没有 `tools/`）
-
-这类旧副本**没有自更新能力**（自更新工具本身是 v3.1.0 才引入的），必须先手动取一次新版：
-
-```bash
-# 先备份旧目录
-mv ~/.workbuddy/skills/gpt-image-prompt ~/.workbuddy/skills/gpt-image-prompt.old
-
-# 重新克隆
-git clone https://github.com/HTBjiangnan/gpt-image-prompt.git \
-  ~/.workbuddy/skills/gpt-image-prompt
+```
+~/.gpt-image-prompt/backups/<时间戳>/
 ```
 
-或者下载 ZIP 解压覆盖。**取到一次带 `tools/` 的新版之后，以后就回到「情况 A」，全自动了。**
-
-### 情况 C：换了新电脑，第一次安装
+### 换新电脑，第一次安装
 
 直接 clone 或下载 ZIP 即可，**不需要任何配置**（公开仓库只读免鉴权）：
 
 ```bash
 git clone https://github.com/HTBjiangnan/gpt-image-prompt.git \
-  ~/.workbuddy/skills/gpt-image-prompt
+  "$SKILLS/gpt-image-prompt"
 ```
+
+装完即进入上面的「自动更新」轨道。
+
+### 关于"旧版单文件副本"
+
+**没有这种副本，所以也不存在"必须先手动覆盖一次"的路径。**
+
+本仓库的公开版本从一开始就是**带 `tools/` 的完整形态**（版本号也一直是 3.1.0 及以上），clone 或解压得到的就是全部文件，不存在"只下载过单个 `SKILL.md`"的早期版本——因此任何一份已安装副本都天生具备自更新能力，装完即自动。
+
+> 唯一的例外是自己操作失误：**安装必须整目录进行**。如果你只往技能目录里拷了 `SKILL.md` 一个文件、漏掉了 `tools/`，自更新自然不会工作——重新 clone 或解压整包一次即可，之后照常自动。
 
 ### 多台电脑怎么保持同步
 
