@@ -1,9 +1,16 @@
 {
   "schema": 1,
   "skill": "gpt-image-prompt",
-  "version": "3.4.1",
-  "updated_at": "2026-10-10T13:07:49+08:00",
+  "version": "3.5.0",
+  "rev": 1,
+  "release": "skill",
+  "updated_at": "2026-10-10T13:13:38+08:00",
   "changelog": [
+    "新增：版本号双轨制 —— version 只在技能文件（SKILL.md/references/tools）变化时递增；README/CHANGELOG/LICENSE/.gitignore 属文档文件，改动不升版本号，其他电脑不会被触发自动更新",
+    "新增：VERSION.json 增加 rev（修订号，每次发布 +1）与 release（skill/docs）字段；push 自动比对远端清单判定类别",
+    "新增：核对方区分 docs_stale（版本相同、远端仅 rev 更高）—— 状态 ok、不写磁盘、不打扰；--update --sync-docs 可主动同步文档",
+    "修复：版本号相同但行为文件不一致（发布方漏升版）时保守按远端同步；push 增加「本地版本低于远端」保护",
+    "文档：README 增加「版本号是怎么定的」小节与决策流程图分支；SKILL.md 启动自检新增「文档构建静默忽略」规则",
     "文档：README 路径全面中立化，安装/更新命令改用占位符 $SKILLS，不再出现任何平台专属路径",
     "文档：重写「如何把已安装的副本更新到最新版本」章节，删除情况 A/B/C 分档与「v3.0.0 单文件旧副本需手动覆盖」整节（公开版本从 3.1.0 起就是带 tools/ 的完整形态，不存在那种副本）",
     "文档：去掉「旧数据自动迁移」提示，改为强调数据目录与 Agent 平台完全无关",
@@ -17,17 +24,17 @@
   ],
   "files": {
     ".gitignore": "sha256:1177796a70a85cd0fc01151a23bce4d3140c88acd9ee90f370e23fba80c7923e",
-    "CHANGELOG.md": "sha256:5622e907a68a5e02586c1be9979bc1770ad35e09fbad46d409e5c040a7f8c982",
-    "README.md": "sha256:a2e6a880a46cda243b98561d7d1abbf3c0af2bf296c771e4ca67b20b7247a3a9",
-    "SKILL.md": "sha256:a57162e2cf7737152a519c347e689ac0d3ce731933eafce2888094b929f35876",
+    "CHANGELOG.md": "sha256:3900dc00417703e396241ff607b88b524d9c6cabcd892ae1e747f4caf021f109",
+    "README.md": "sha256:de8da9467c3a9396da86882527794a376ccfa5f2922770295be767a81da31073",
+    "SKILL.md": "sha256:20afcbfa00f4287d359f731de887b3bd363b5140c6bb96dded9b0dd625c381a1",
     "references/GPT-Image-2-提示词完整指南.md": "sha256:fe7bc9213b60b3addd12685def6967cdf6d99dc06c280de83d417f29fa83301f",
     "references/收录评估标准.md": "sha256:ab3ef47599858a5d67fc1de88e60279b9d4c1c6b3e5eb0b2c947784ec40d858e",
     "tools/__init__.py": "sha256:b04d235870a77f8bfcce7604ef5d5da725c082dad30cd47c2e6074f1d31a383d",
     "tools/gh_client.py": "sha256:9012bad432696ec69442e5b2accc6b0b988b511ccd1f3512fe3cdb45bb2d5f1a",
-    "tools/github_sync.py": "sha256:c9b02d0dc26abf51d2c71b7635ed7a5954850a7a92c933ab3a057e7a237dbdc5",
-    "tools/github_version_check.py": "sha256:2e5847c5442af69e4babbc3b9cdd4fa589d4c1d749534826ef2b2bdd7fd214e3",
+    "tools/github_sync.py": "sha256:5194e1cba46ab1395c475f4122f5b947c806a95ec788d839a3063436e6bd1557",
+    "tools/github_version_check.py": "sha256:667c171702f5eb2a20121fb14f5068e2232d89c69ddd2702f1443ea76cfbf426",
     "tools/image_intake.py": "sha256:947d572043b8da6f67be38a441406e0523994c844c73f70babfbc53b7b7af4a2",
     "tools/startup_check.py": "sha256:dda1d4a6c08a91b51d2f88c4e6b87605b9a6fb2b4b8911f41fbf3e062f2f40af",
-    "tools/summon.py": "sha256:dc133b8263c8014a5d03461dfc03bb5de869a54fca35b447227dd2e5f3523b1a"
+    "tools/summon.py": "sha256:2a4fd7c1d3bf0f02a9202ecda485c7a4fe199af7f90f86524d9f44252ae67393"
   }
 }
