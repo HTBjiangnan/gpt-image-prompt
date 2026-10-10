@@ -222,7 +222,7 @@ flowchart TD
 | 类别 | 包含 | 改动后果 |
 |---|---|---|
 | **行为文件** | `SKILL.md`、`references/**`、`tools/**` | 递增 `version` → **其他电脑下次加载时自动更新** |
-| **文档文件** | `README.md`、`CHANGELOG.md`、`LICENSE`、`.gitignore` | **不递增 `version`** → 其他电脑**完全不动作**（GitHub 仓库页面照样是最新的） |
+| **文档文件** | `README.md`、`CHANGELOG.md`、`LICENSE`、`.gitignore` | **不递增 `version`** → 其他电脑**完全不动作** |
 
 发布时（`--push`）会**自动比对远端清单**判定类别，不需要人工声明：
 
