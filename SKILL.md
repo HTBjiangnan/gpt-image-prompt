@@ -1,7 +1,7 @@
 ---
 name: gpt-image-prompt
 description: GPT Image 2/2.5 提示词写作决策体系，涵盖58场景模板（保险海报、节日营销、国潮水墨、数据汇报、漫画、偷拍感等）+ 版式决策总表（内容特征→版式自动匹配）+ 实拍照片12玩法，提供 prompt 结构和参数指导。核心用法：AI拿到内容先查决策总表自动选版式，用户不需要自己挑模板。
-version: 3.1.0
+version: 3.1.1
 github_repo: HTBjiangnan/gpt-image-prompt
 github_branch: main
 agent_created: true
@@ -247,6 +247,9 @@ python tools/summon.py --check
 5. 用户确认后： python tools/summon.py --intake commit <stage_id> --confirm
 6. 用户放弃：   python tools/summon.py --intake abort <stage_id>
 ```
+
+**提交内容**：追踪 Issue 里的一条**纯文字评论**（评分明细 + 判定 + ① ② ③ + 模板骨架 + 图片指纹）。
+**不提交图片二进制** —— 本技能的沉淀物是文字模板，图片只是评估输入，仓库体积零增长。
 
 **三条红线**：
 - 视觉判断由你（Agent）做，脚本只做指纹、校验、暂存与提交，**不要把评分工作推给脚本**。
