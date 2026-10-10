@@ -237,8 +237,19 @@ flowchart TD
 | 你自己往技能目录里放的文件 | **不会被删**（不在清单里就永远不动） |
 | 全部通道不可用 | 静默跳过，不影响技能主功能 |
 
-备份位置：`~/.workbuddy/skills/.backups/gpt-image-prompt/<时间戳>/`（保留最近 10 份）。
-更新只会触碰技能目录内的文件，**绝不递归删除、绝不触碰目录外的任何路径**。
+**数据目录**（与 Agent 平台无关，可用环境变量 `GPT_IMAGE_PROMPT_HOME` 覆盖）：
+
+| 内容 | 默认位置 |
+|---|---|
+| PAT 配置 | `~/.gpt-image-prompt/config.json` |
+| 更新备份（保留最近 10 份） | `~/.gpt-image-prompt/backups/<时间戳>/` |
+| 每日核对打卡 | `~/.gpt-image-prompt/check_stamp.json` |
+| 审计日志 | `~/.gpt-image-prompt/audit.jsonl` |
+
+> 从 v3.3.3 及更早版本升级上来时，旧位置（`~/.workbuddy/` 下）的数据会在首次运行时
+> **自动复制**到新位置；旧文件保留原样，确认无误后可自行清理。
+
+更新只会触碰技能目录内的文件，**绝不递归删除、绝不触碰技能目录之外的任何路径**。
 
 ### 命令一览
 
@@ -383,7 +394,7 @@ python tools/summon.py --status
 ```
 
 如果更新出问题，备份在原目录同级：
-`~/.workbuddy/skills/.backups/gpt-image-prompt/<时间戳>/`，把里面的文件拷回技能目录即可还原。
+`~/.gpt-image-prompt/backups/<时间戳>/`，把里面的文件拷回技能目录即可还原。
 
 ### 情况 B：副本是 v3.0.0（只有单个 `SKILL.md`，没有 `tools/`）
 
@@ -414,10 +425,10 @@ git clone https://github.com/HTBjiangnan/gpt-image-prompt.git \
 | 场景 | 做法 |
 |---|---|
 | 只是想用最新版 | 每台机各装一份，靠自动更新保持一致，无需人工干预 |
-| 想在其他电脑上改这个技能 | 需要在该机配置 PAT（写入 `~/.workbuddy/skill_github_config.json`，**位于技能目录之外**），改完跑 `python tools/summon.py --push` |
+| 想在其他电脑上改这个技能 | 需要在该机配置 PAT（写入 `~/.gpt-image-prompt/config.json`，**位于技能目录之外**），改完跑 `python tools/summon.py --push` |
 | 别人想用 | 直接 clone 本仓库，读权限完全公开 |
 
-> ⚠️ 配置文件 `~/.workbuddy/skill_github_config.json` **不在技能目录内**，因此永远不会随技能被同步出去，token 不会泄露。没有这个文件的电脑就是纯只读模式，一切正常。
+> ⚠️ 配置文件 `~/.gpt-image-prompt/config.json` **不在技能目录内**，因此永远不会随技能被同步出去，token 不会泄露。没有这个文件的电脑就是纯只读模式，一切正常。
 
 ---
 
