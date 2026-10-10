@@ -1,12 +1,12 @@
 {
   "schema": 1,
   "skill": "gpt-image-prompt",
-  "version": "3.1.1",
-  "updated_at": "2026-10-10T09:58:15+08:00",
+  "version": "3.1.2",
+  "updated_at": "2026-10-10T09:59:04+08:00",
   "changelog": [
     "【设计变更】收录候选不再向仓库提交图片二进制，改为纯文字评论（技能沉淀物是文字模板）",
     "去重依据从「远端 inbox 文件」改为「追踪 Issue 评论中的图片指纹」",
-    "移除 inbox/ 目录与相关逻辑，暂存目录改为技能根目录下 .staged/",
+    "移除 inbox/ 目录与 inbox_dir 配置项，暂存目录改为技能根目录下 .staged/",
     "修复：render_comment 读取尚未赋值的 submitted_at 导致 KeyError",
     "修复：URL 含中文路径时未做百分号编码导致 UnicodeEncodeError（网络层统一处理）",
     "新增：push 支持远端仓库不存在时自动创建"
@@ -14,11 +14,11 @@
   "files": {
     ".gitignore": "sha256:1177796a70a85cd0fc01151a23bce4d3140c88acd9ee90f370e23fba80c7923e",
     "README.md": "sha256:b13729dbcb313baed47009380161582d1b1e32f622bd2b79bd85d59827d9b28a",
-    "SKILL.md": "sha256:8cfecdcefd62f3f9cfc82d1bfa698f57fa1dac5a878d8085d5874828bb64634a",
+    "SKILL.md": "sha256:a6e74005bec6164f6ecee9836e47bea1dbd7ee06126faf7e294b07a22c9e17ee",
     "references/GPT-Image-2-提示词完整指南.md": "sha256:fe7bc9213b60b3addd12685def6967cdf6d99dc06c280de83d417f29fa83301f",
     "references/收录评估标准.md": "sha256:ab3ef47599858a5d67fc1de88e60279b9d4c1c6b3e5eb0b2c947784ec40d858e",
     "tools/__init__.py": "sha256:b04d235870a77f8bfcce7604ef5d5da725c082dad30cd47c2e6074f1d31a383d",
-    "tools/gh_client.py": "sha256:2639d3874707cfff67c51d77aaea39a11029dfd1da4f799d99878fea4d98aed7",
+    "tools/gh_client.py": "sha256:9af7df09848c3abdb551f968bf66649ae329b493dbfc545b692d80d22d82af91",
     "tools/github_sync.py": "sha256:e7257748b85b1bcba34e98221e82f3722aba666a46879a9adcc56b2b90095aab",
     "tools/github_version_check.py": "sha256:d7cf132fd48d5efe3b6d49832f29fba21a5cbfa72f4a8837e071bffda1d926c4",
     "tools/image_intake.py": "sha256:5226c0fe5383c429094d094e1dccc5abc46fa754194e6d4da298480fd12a865a",
