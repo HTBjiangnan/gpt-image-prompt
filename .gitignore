@@ -1,0 +1,16 @@
+# 缓存与临时产物
+__pycache__/
+*.py[cod]
+*.bak
+*.tmp
+.tmp_*
+
+# 图片候选暂存（未确认前不提交）
+inbox/.staged/
+inbox/.tmp/
+
+# 本地环境
+.venv/
+venv/
+.DS_Store
+Thumbs.db
