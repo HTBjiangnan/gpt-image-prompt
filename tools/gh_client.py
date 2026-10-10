@@ -142,9 +142,21 @@ def _build_opener(use_proxy, cfg):
     return urllib.request.build_opener(*handlers)
 
 
+def _safe_url(url):
+    """对含非 ASCII 字符（如中文文件名/目录）的 URL 做百分号编码。
+
+    urllib.request.Request 不接受非 ASCII 的 URL，否则抛 UnicodeEncodeError。
+    '%' 在 safe 集合内，因此已编码过的 URL 不会被二次编码。
+    """
+    if all(ord(c) < 128 for c in url):
+        return url
+    return urllib.parse.quote(url, safe=":/?#[]@!$&'()*+,;=%")
+
+
 def http_get(url, cfg=None, headers=None, timeout=TIMEOUT, use_proxy=False, max_bytes=None):
     """返回 (data: bytes | None, err: str | None)"""
     cfg = cfg or {}
+    url = _safe_url(url)
     hdrs = {"User-Agent": USER_AGENT}
     if headers:
         hdrs.update(headers)
@@ -173,6 +185,7 @@ def http_get(url, cfg=None, headers=None, timeout=TIMEOUT, use_proxy=False, max_
 def http_request(method, url, cfg=None, payload=None, headers=None, timeout=TIMEOUT):
     """带 JSON body 的请求，用于写操作。返回 (data: dict|None, err: str|None)"""
     cfg = cfg or {}
+    url = _safe_url(url)
     hdrs = dict(API_HEADERS)
     if headers:
         hdrs.update(headers)
@@ -423,6 +436,16 @@ def api_create_comment(issue_number, body, cfg):
 def api_get_issue(issue_number, cfg):
     url = "https://api.github.com/repos/%s/issues/%s" % (cfg["repo"], issue_number)
     return http_request("GET", url, cfg=cfg, headers=_auth_headers(cfg))
+
+
+def api_list_comments(issue_number, cfg, per_page=100):
+    """列出 Issue 评论。返回 (list, err)"""
+    url = ("https://api.github.com/repos/%s/issues/%s/comments?per_page=%d"
+           % (cfg["repo"], issue_number, per_page))
+    data, err = http_request("GET", url, cfg=cfg, headers=_auth_headers(cfg))
+    if err or not isinstance(data, list):
+        return [], err
+    return data, None
 
 
 def api_rate_limit(cfg):
