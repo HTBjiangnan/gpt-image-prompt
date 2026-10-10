@@ -336,6 +336,11 @@ def ensure_repo(cfg, private=False):
         if db and db != cfg.get("branch"):
             cfg["branch"] = db
             gh.save_config(cfg)
+        # 顺带把仓库简介同步为源码里的默认值（仅在有写权限且不一致时；失败不影响 push）
+        if gh.has_token(cfg):
+            cur, derr = gh.repo_description(cfg)
+            if not derr and cur != gh.DEFAULT_DESCRIPTION:
+                gh.update_repo_description(cfg, gh.DEFAULT_DESCRIPTION)
         return True, "远端仓库已存在：%s" % cfg["repo"], False
     if exists is None:
         return False, "无法确认仓库状态（认证或网络问题）：%s" % detail, False
