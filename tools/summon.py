@@ -4,6 +4,7 @@
 用法：
   python tools/summon.py --check             只比对版本，不修改
   python tools/summon.py --update            比对并自动更新（只升不降，先备份）
+  python tools/summon.py --update --sync-docs  连纯文档变更也一起同步
   python tools/summon.py --status            打印版本/通道/配置状态
   python tools/summon.py --probe             探测网络通道并缓存结果
   python tools/summon.py --audit             公开前自检（扫 token/绝对路径/内网/业务敏感词）
@@ -11,8 +12,14 @@
   python tools/summon.py --intake <图片> <评估json>   图片收录评估（第一阶段）
   python tools/summon.py --commit <stage_id> --confirm  提交候选（第二阶段）
 
+版本号规则（push 时自动判定）：
+  version  语义版本，**自动更新的唯一依据**。只有技能文件（SKILL.md / references / tools）
+           变化才递增；纯文档改动（README / CHANGELOG / LICENSE / .gitignore）不升。
+  rev      修订号，每次发布 +1（含纯文档），仅用于审计与提示。
+  release  skill = 技能更新（其他电脑会自动跟进）/ docs = 仅文档（不触发自动更新）
+
 返回码：
-  0  一致 / 成功
+  0  一致 / 成功（含"远端只有文档构建更新"）
   10 本地落后（已更新 或 提示可更新）
   11 本地领先（只告警，未改动）
   20 网络不可用
@@ -54,7 +61,8 @@ RET_ERR = 99
 def cmd_check(args):
     """每天第一次联网核对；日内重复调用只做离线一致性自检。"""
     cfg = gh.load_config()
-    r = vc.daily_check(cfg=cfg, force=args.force_check, auto_update=args.auto_update)
+    r = vc.daily_check(cfg=cfg, force=args.force_check, auto_update=args.auto_update,
+                       include_docs=args.sync_docs)
     if args.json:
         print(json.dumps(r, ensure_ascii=False, indent=2, default=str))
     else:
@@ -69,6 +77,7 @@ def cmd_check(args):
 def _rc_from_action(action):
     return {
         "match": RET_OK,
+        "docs_stale": RET_OK,
         "updated": RET_BEHIND,
         "update_available": RET_BEHIND,
         "local_ahead": RET_AHEAD,
@@ -82,8 +91,11 @@ def _rc_from_action(action):
 def cmd_status(args):
     cfg = gh.load_config()
     local_v, source, err = vc.read_local_version()
+    local_man = vc.read_local_manifest()[0] or {}
     print("技能        : %s" % os.path.basename(sync.SKILL_ROOT))
     print("本地版本    : %s   (来源: %s)" % (local_v or "未知", source or "-"))
+    print("修订        : rev %s   (release=%s)" % (
+        local_man.get("rev", "-"), local_man.get("release", "-")))
     fm, _ = vc.read_frontmatter_version()
     print("frontmatter : %s%s" % (fm or "-", "  ⚠️ 与 VERSION.json 不一致" if fm and fm != local_v else ""))
     print("仓库        : %s@%s" % (cfg["repo"], cfg["branch"]))
@@ -94,9 +106,13 @@ def cmd_status(args):
     if rerr:
         print("远端版本    : 不可用 —— %s" % rerr)
     else:
-        print("远端版本    : %s   (通道: %s)" % (remote.get("version"), channel))
+        print("远端版本    : %s   (通道: %s, rev %s)" % (
+            remote.get("version"), channel, remote.get("rev", "-")))
         cmp = vc.version_compare(local_v, remote.get("version"))
-        print("比较结果    : %s" % {1: "本地领先", 0: "一致", -1: "远端更新"}[cmp])
+        note = {1: "本地领先", 0: "一致", -1: "远端更新"}[cmp]
+        if cmp == 0 and int(remote.get("rev") or 0) > int(local_man.get("rev") or 0):
+            note += "（远端有更新的文档构建，不影响技能行为）"
+        print("比较结果    : %s" % note)
 
     if args.probe_channels:
         print("\n通道探测:")
@@ -209,6 +225,8 @@ def build_parser():
     p.add_argument("--quiet", action="store_true", help="静默（无变更时不输出）")
     p.add_argument("--force-check", action="store_true",
                    help="忽略「每天一次」限制，强制立即联网核对")
+    p.add_argument("--sync-docs", dest="sync_docs", action="store_true",
+                   help="把纯文档变更也一起同步（默认：纯文档发布不触发自动更新）")
     # intake 的位置参数
     p.add_argument("image", nargs="?", help="intake stage 的图片路径")
     p.add_argument("assessment", nargs="?", help="intake stage 的评估 JSON 路径")
@@ -228,7 +246,8 @@ def main(argv=None):
     try:
         if args.update:
             cfg = gh.load_config()
-            r = vc.daily_check(cfg=cfg, force=args.force_check, auto_update=True)
+            r = vc.daily_check(cfg=cfg, force=args.force_check, auto_update=True,
+                               include_docs=args.sync_docs)
             if args.json:
                 print(json.dumps(r, ensure_ascii=False, indent=2, default=str))
             elif not (args.quiet and r.get("action") == "match"):
