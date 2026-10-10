@@ -33,6 +33,9 @@ CONFIG_PATH = os.path.join(os.path.expanduser("~"), ".workbuddy", "skill_github_
 DEFAULT_REPO = "HTBjiangnan/gpt-image-prompt"
 DEFAULT_BRANCH = "main"
 
+# 仓库简介（显示在 GitHub 仓库页顶部）。改这里后，下次 push 会自动同步到远端。
+DEFAULT_DESCRIPTION = "GPT Image 提示词技能包：58 场景模板 + 版式决策总表 + 严格收录评估"
+
 TIMEOUT = 15
 RAW_TIMEOUT = 8          # raw 通道在部分网络下极慢，单独限制超时（实测 16–50s/文件）
 RETRIES = 2
@@ -481,6 +484,31 @@ def repo_exists(cfg):
     return True, True, "ok"
 
 
+def repo_description(cfg):
+    """读取远端仓库简介。返回 (description|None, err)"""
+    url = "https://api.github.com/repos/%s" % cfg["repo"]
+    data, err = http_request("GET", url, cfg=cfg, headers=_auth_headers(cfg))
+    if err:
+        return None, err
+    return (data.get("description") if isinstance(data, dict) else None), None
+
+
+def update_repo_description(cfg, description):
+    """PATCH /repos/{owner}/{repo} —— 更新仓库简介（需 PAT 的 repo / Administration 写权限）
+
+    返回 (ok: bool, detail: str)
+    """
+    if not has_token(cfg):
+        return False, "缺少 PAT，无法更新仓库简介"
+    url = "https://api.github.com/repos/%s" % cfg["repo"]
+    data, err = http_request("PATCH", url, cfg=cfg, payload={"description": description},
+                             headers=_auth_headers(cfg))
+    if err:
+        return False, err
+    cur = data.get("description") if isinstance(data, dict) else None
+    return True, "仓库简介已更新：%s" % cur
+
+
 def create_repo(cfg, private=False, description=None, auto_init=True):
     """POST /user/repos —— 创建远端仓库。
 
@@ -500,7 +528,7 @@ def create_repo(cfg, private=False, description=None, auto_init=True):
         "has_issues": True,
         "has_wiki": False,
         "has_projects": False,
-        "description": description or "GPT Image 提示词技能包（WorkBuddy Skill）：58 场景模板 + 版式决策总表 + 严格收录评估",
+        "description": description or DEFAULT_DESCRIPTION,
     }
     data, err = http_request("POST", "https://api.github.com/user/repos",
                              cfg=cfg, payload=payload, headers=_auth_headers(cfg))
