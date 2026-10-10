@@ -39,7 +39,7 @@ except ImportError:
 
 SKILL_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 STAGE_DIR = os.path.join(SKILL_ROOT, ".staged")
-AUDIT_LOG = os.path.join(os.path.expanduser("~"), ".workbuddy", "skill_github_audit.jsonl")
+AUDIT_LOG = gh.AUDIT_LOG  # 由数据目录统一管理（gh_client.DATA_HOME）
 
 TRACKING_ISSUE_TITLE = "【收录候选】候选图片追踪（本技能自动创建，请勿删除）"
 TRACKING_ISSUE_LABEL = "候选收录"
@@ -441,6 +441,7 @@ def list_staged():
 
 def _audit(action, sha, total, band, issue_no, extra):
     try:
+        gh.ensure_data_home()
         os.makedirs(os.path.dirname(AUDIT_LOG), exist_ok=True)
         rec = {"ts": time.strftime("%Y-%m-%d %H:%M:%S"), "action": action,
                "sha256": sha, "total": total, "band": band,
