@@ -2,7 +2,7 @@
 """gh_client.py - GitHub 访问网络层
 
 职责：
-1. 读取/写入凭据配置（默认位于 ~/.workbuddy/skill_github_config.json，不在技能目录内）
+1. 读取/写入凭据配置（默认位于 ~/.gpt-image-prompt/config.json，不在技能目录内）
 2. 显式绕过失效的环境代理（http_proxy/https_proxy），必要时自动回退到代理
 3. 多通道探测与降级：raw -> api(免鉴权) -> codeload -> jsdelivr(兜底，有 CDN 缓存)
 4. 封装 GitHub REST API（读文件、写文件、建 Issue、发评论）
@@ -15,6 +15,7 @@ import io
 import json
 import os
 import re
+import shutil
 import socket
 import ssl
 import tarfile
@@ -28,13 +29,87 @@ import urllib.request
 # ============================================================
 
 SKILL_NAME = "gpt-image-prompt"
-CONFIG_PATH = os.path.join(os.path.expanduser("~"), ".workbuddy", "skill_github_config.json")
 
 DEFAULT_REPO = "HTBjiangnan/gpt-image-prompt"
 DEFAULT_BRANCH = "main"
 
 # 仓库简介（显示在 GitHub 仓库页顶部）。改这里后，下次 push 会自动同步到远端。
 DEFAULT_DESCRIPTION = "GPT Image 提示词技能包：58 场景模板 + 版式决策总表 + 严格收录评估"
+
+# ------------------------------------------------------------
+# 数据目录（与 Agent 平台解耦）
+# ------------------------------------------------------------
+# 技能本体的安装位置随 Agent 而异（WorkBuddy 是 ~/.workbuddy/skills/，
+# Claude Code 是 ~/.claude/skills/，其他见各自文档），但工具链产生的数据
+# （PAT 配置、更新备份、每日核对打卡、审计日志）统一放在用户主目录下的
+# 独立目录，不依赖任何特定 Agent 的目录结构。
+# 可用环境变量 GPT_IMAGE_PROMPT_HOME 覆盖默认位置。
+DATA_HOME = (os.environ.get("GPT_IMAGE_PROMPT_HOME") or "").strip() or \
+    os.path.join(os.path.expanduser("~"), ".gpt-image-prompt")
+
+CONFIG_PATH = os.path.join(DATA_HOME, "config.json")
+BACKUP_ROOT = os.path.join(DATA_HOME, "backups")
+STAMP_PATH = os.path.join(DATA_HOME, "check_stamp.json")
+AUDIT_LOG = os.path.join(DATA_HOME, "audit.jsonl")
+
+# 旧版（<= v3.3.3）数据位置：仅用于一次性自动迁移，迁移之后不再写入
+LEGACY_HOME = os.path.join(os.path.expanduser("~"), ".workbuddy")
+LEGACY_FILES = [
+    (os.path.join(LEGACY_HOME, "skill_github_config.json"), CONFIG_PATH),
+    (os.path.join(LEGACY_HOME, ".gpt_image_prompt_check_stamp.json"), STAMP_PATH),
+    (os.path.join(LEGACY_HOME, "skill_github_audit.jsonl"), AUDIT_LOG),
+]
+LEGACY_BACKUP_ROOT = os.path.join(LEGACY_HOME, "skills", ".backups", SKILL_NAME)
+
+_data_home_ready = False
+
+
+def ensure_data_home(verbose=False):
+    """确保数据目录存在；首次运行时把旧版 ~/.workbuddy 下的数据搬过来。
+
+    迁移只做**复制**，不删除旧文件——旧数据原样留在原处，确认无误后可自行清理。
+    返回本次迁移的说明列表（无迁移时为空）。
+    """
+    global _data_home_ready
+    notes = []
+    try:
+        os.makedirs(DATA_HOME, exist_ok=True)
+    except Exception:
+        return notes
+    if _data_home_ready:
+        return notes
+    _data_home_ready = True
+
+    # 单文件：旧路径有、新路径无 -> 复制
+    for old, new in LEGACY_FILES:
+        try:
+            if os.path.isfile(old) and not os.path.exists(new):
+                os.makedirs(os.path.dirname(new), exist_ok=True)
+                shutil.copy2(old, new)
+                notes.append("%s  <-  %s" % (new, old))
+        except Exception:
+            pass
+
+    # 备份目录：逐份复制（不覆盖同名）
+    try:
+        if os.path.isdir(LEGACY_BACKUP_ROOT):
+            os.makedirs(BACKUP_ROOT, exist_ok=True)
+            n = 0
+            for name in sorted(os.listdir(LEGACY_BACKUP_ROOT)):
+                src = os.path.join(LEGACY_BACKUP_ROOT, name)
+                dst = os.path.join(BACKUP_ROOT, name)
+                if os.path.isdir(src) and not os.path.exists(dst):
+                    shutil.copytree(src, dst)
+                    n += 1
+            if n:
+                notes.append("%s  <-  %s（%d 份备份）" % (BACKUP_ROOT, LEGACY_BACKUP_ROOT, n))
+    except Exception:
+        pass
+
+    if verbose and notes:
+        for x in notes:
+            print("· 数据目录迁移: %s" % x)
+    return notes
 
 TIMEOUT = 15
 RAW_TIMEOUT = 8          # raw 通道在部分网络下极慢，单独限制超时（实测 16–50s/文件）
@@ -56,6 +131,7 @@ API_HEADERS = {
 
 def load_config():
     """读取配置。不存在时返回默认骨架（不写盘）。"""
+    ensure_data_home()
     cfg = {
         "repo": DEFAULT_REPO,
         "branch": DEFAULT_BRANCH,
@@ -82,6 +158,7 @@ def load_config():
 
 def save_config(cfg):
     """把配置写回配置文件（保留其它技能段落）。"""
+    ensure_data_home()
     os.makedirs(os.path.dirname(CONFIG_PATH), exist_ok=True)
     raw = {}
     if os.path.isfile(CONFIG_PATH):
