@@ -5,6 +5,22 @@
 
 ---
 
+## [3.4.0] — 2026-10-10
+
+### 变更
+- **工具链数据目录与 Agent 平台解耦**：PAT 配置、更新备份、每日核对打卡、审计日志
+  从 `~/.workbuddy/` 迁到独立的 `~/.gpt-image-prompt/`，不再依赖任何特定 Agent 的目录结构
+  （可用环境变量 `GPT_IMAGE_PROMPT_HOME` 覆盖）
+
+### 新增
+- **旧数据自动迁移**：首次运行检测到旧位置数据时自动复制到新位置，只复制不删除，旧文件保留原样
+  - `~/.workbuddy/skill_github_config.json` → `~/.gpt-image-prompt/config.json`
+  - `~/.workbuddy/skills/.backups/gpt-image-prompt/` → `~/.gpt-image-prompt/backups/`
+  - `~/.workbuddy/.gpt_image_prompt_check_stamp.json` → `~/.gpt-image-prompt/check_stamp.json`
+  - `~/.workbuddy/skill_github_audit.jsonl` → `~/.gpt-image-prompt/audit.jsonl`
+
+---
+
 ## [3.3.3] — 2026-10-10
 
 ### 变更
