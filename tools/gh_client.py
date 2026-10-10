@@ -57,7 +57,6 @@ def load_config():
         "branch": DEFAULT_BRANCH,
         "token": "",
         "issue_number": None,
-        "inbox_dir": "inbox",
         "tls_verify": True,
         "channel_cache": None,
     }
@@ -112,7 +111,6 @@ def config_template():
             "branch": DEFAULT_BRANCH,
             "token": "",
             "issue_number": None,
-            "inbox_dir": "inbox",
         }
     }
 
