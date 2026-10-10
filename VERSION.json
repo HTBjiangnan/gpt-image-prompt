@@ -2,9 +2,9 @@
   "schema": 1,
   "skill": "gpt-image-prompt",
   "version": "3.5.0",
-  "rev": 2,
+  "rev": 3,
   "release": "docs",
-  "updated_at": "2026-10-10T13:14:29+08:00",
+  "updated_at": "2026-10-10T13:41:57+08:00",
   "changelog": [
     "新增：版本号双轨制 —— version 只在技能文件（SKILL.md/references/tools）变化时递增；README/CHANGELOG/LICENSE/.gitignore 属文档文件，改动不升版本号，其他电脑不会被触发自动更新",
     "新增：VERSION.json 增加 rev（修订号，每次发布 +1）与 release（skill/docs）字段；push 自动比对远端清单判定类别",
@@ -24,8 +24,8 @@
   ],
   "files": {
     ".gitignore": "sha256:1177796a70a85cd0fc01151a23bce4d3140c88acd9ee90f370e23fba80c7923e",
-    "CHANGELOG.md": "sha256:3900dc00417703e396241ff607b88b524d9c6cabcd892ae1e747f4caf021f109",
-    "README.md": "sha256:aab8e3a37374aeda435ebe9f54e4396bfcceaef2460b0c667459e7bb0a2631e8",
+    "CHANGELOG.md": "sha256:082939ea7373f4facd3192f373bfbdf3623ba6c217c5320b029b40f50e8c3b73",
+    "README.md": "sha256:26c028e3e3ae9ce1748f83a7738f4a98d766deff5c899b242025f5be382199bb",
     "SKILL.md": "sha256:20afcbfa00f4287d359f731de887b3bd363b5140c6bb96dded9b0dd625c381a1",
     "references/GPT-Image-2-提示词完整指南.md": "sha256:fe7bc9213b60b3addd12685def6967cdf6d99dc06c280de83d417f29fa83301f",
     "references/收录评估标准.md": "sha256:ab3ef47599858a5d67fc1de88e60279b9d4c1c6b3e5eb0b2c947784ec40d858e",
