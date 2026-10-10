@@ -205,8 +205,29 @@ FRESH_CHANNELS = ("api", "codeload")
 # 主函数
 # ============================================================
 
-def check_version(cfg=None, auto_update=False, force_channel=None, verbose=False):
-    """版本自检。返回结构对齐 数据分析/tools/version_check.py"""
+def _behavior_files_differ(local_man, remote_man):
+    """版本号相同时，技能行为文件是否仍不一致（发布方漏升版的兜底检测）"""
+    try:
+        from . import github_sync as _sync
+    except ImportError:
+        import github_sync as _sync
+    lf = (local_man or {}).get("files") or {}
+    rf = (remote_man or {}).get("files") or {}
+    for rel in set(lf) | set(rf):
+        if not _sync.is_behavior_file(rel):
+            continue
+        if lf.get(rel) != rf.get(rel):
+            return True
+    return False
+
+
+def check_version(cfg=None, auto_update=False, force_channel=None, verbose=False,
+                  include_docs=False):
+    """版本自检。返回结构对齐 数据分析/tools/version_check.py
+
+    include_docs=False（默认）：纯文档发布（版本号未变、仅 rev 增长）**不会**触发更新，
+    只在提示里说明远端有更新的文档构建；设为 True 可一并同步文档。
+    """
     result = {
         "status": "ok",
         "action": "unknown",
@@ -275,6 +296,35 @@ def check_version(cfg=None, auto_update=False, force_channel=None, verbose=False
             break
 
     if cmp == 0:
+        # 版本号相同，但还要看两种情况：
+        # ① 行为文件仍不一致（发布方漏升版）—— 保守起见按远端同步，避免长期漂移
+        # ② 远端 rev 更高（纯文档/元数据发布）—— 默认**不**更新，不打扰已有副本
+        local_man = read_local_manifest()[0] or {}
+        lrev = int(local_man.get("rev") or 0)
+        rrev = int(remote.get("rev") or 0)
+
+        if _behavior_files_differ(local_man, remote):
+            result.update(status="warn", action="remote_newer",
+                          message="版本号相同（v%s）但技能文件不一致，按远端同步" % local_version,
+                          detail="远端发布时未升版本号；以远端为准（通道 %s）" % channel)
+            if not auto_update:
+                result["action"] = "update_available"
+                result["detail"] += "（未自动更新，运行 summon.py --update 应用）"
+                return result
+            return _apply_update(cfg, remote, channel, result)
+
+        if rrev > lrev:
+            if not include_docs:
+                result.update(status="ok", action="docs_stale",
+                              message="版本一致 v%s；远端有更新的文档构建（rev %d）" % (local_version, rrev),
+                              detail="远端仅改动文档/元数据（README、CHANGELOG 等），不影响技能行为，"
+                                     "因此未自动更新；如需同步文档可运行 summon.py --update --sync-docs")
+                return result
+            result.update(status="warn", action="remote_newer",
+                          message="远端有更新的文档构建（rev %d）" % rrev,
+                          detail="仅文档/元数据变更，按 --sync-docs 要求同步（通道 %s）" % channel)
+            return _apply_update(cfg, remote, channel, result)
+
         result.update(status="ok", action="match",
                       message="版本一致: v%s" % local_version,
                       detail="本地与远端（%s）一致，无需操作%s" % (
@@ -312,8 +362,12 @@ def _apply_update(cfg, remote, channel, result):
                       message="自动更新失败", detail="%s: %s" % (type(e).__name__, e))
         return result
     if ok:
-        result.update(status="ok", action="updated", message="已自动更新到 v%s" % remote["version"],
-                      detail=detail)
+        rv, lv = remote.get("version"), result.get("local_version")
+        if lv and rv == lv:
+            msg = "已同步远端构建（版本仍为 v%s，rev %s）" % (rv, remote.get("rev"))
+        else:
+            msg = "已自动更新到 v%s" % rv
+        result.update(status="ok", action="updated", message=msg, detail=detail)
     else:
         result.update(status="warn", action="update_failed", message="自动更新未完成", detail=detail)
     return result
@@ -333,7 +387,7 @@ def local_consistency():
             "detail": "本地一致 v%s（来源 %s）" % (local_version, source)}
 
 
-def daily_check(cfg=None, force=False, auto_update=True):
+def daily_check(cfg=None, force=False, auto_update=True, include_docs=False):
     """推荐的入口：**每天第一次**联网核对，日内其余调用只做离线一致性自检。
 
     返回结构与 check_version 一致，另加 skipped / consistency 字段。
@@ -356,7 +410,7 @@ def daily_check(cfg=None, force=False, auto_update=True):
             "detail": cons["detail"],
         }
 
-    r = check_version(cfg=cfg, auto_update=auto_update)
+    r = check_version(cfg=cfg, auto_update=auto_update, include_docs=include_docs)
     r["skipped"] = False
     r["consistency"] = cons
     action = r.get("action")
