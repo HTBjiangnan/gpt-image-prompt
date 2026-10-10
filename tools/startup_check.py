@@ -55,9 +55,9 @@ def run_startup_check(silent=False, auto_update=True, probe=True):
 
     # ---- 3. 提交凭据 ----
     if gh.has_token(cfg):
-        _add(items, "提交凭据", "ok", "PAT 已配置（可提交候选图片 / 发布）")
+        _add(items, "提交凭据", "ok", "PAT 已配置（可提交候选版式到追踪 Issue / 可发布）")
     else:
-        _add(items, "提交凭据", "warn", "未配置 PAT → 只读模式（版本检测/自动更新正常，不能提交图片）",
+        _add(items, "提交凭据", "warn", "未配置 PAT → 只读模式（版本检测/自动更新正常，不能提交候选）",
              "如需提交，请在 %s 填入 token" % gh.CONFIG_PATH)
 
     all_ok = all(i["status"] == "ok" for i in items)
