@@ -1,7 +1,7 @@
 ---
 name: gpt-image-prompt
 description: GPT Image 2/2.5 提示词写作决策体系，涵盖58场景模板（保险海报、节日营销、国潮水墨、数据汇报、漫画、偷拍感等）+ 版式决策总表（内容特征→版式自动匹配）+ 实拍照片12玩法，提供 prompt 结构和参数指导。核心用法：AI拿到内容先查决策总表自动选版式，用户不需要自己挑模板。
-version: 3.2.1
+version: 3.2.2
 github_repo: HTBjiangnan/gpt-image-prompt
 github_branch: main
 agent_created: true
