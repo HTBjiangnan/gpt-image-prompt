@@ -1,9 +1,12 @@
 {
   "schema": 1,
   "skill": "gpt-image-prompt",
-  "version": "3.4.0",
-  "updated_at": "2026-10-10T11:28:46+08:00",
+  "version": "3.4.1",
+  "updated_at": "2026-10-10T13:07:49+08:00",
   "changelog": [
+    "文档：README 路径全面中立化，安装/更新命令改用占位符 $SKILLS，不再出现任何平台专属路径",
+    "文档：重写「如何把已安装的副本更新到最新版本」章节，删除情况 A/B/C 分档与「v3.0.0 单文件旧副本需手动覆盖」整节（公开版本从 3.1.0 起就是带 tools/ 的完整形态，不存在那种副本）",
+    "文档：去掉「旧数据自动迁移」提示，改为强调数据目录与 Agent 平台完全无关",
     "变更：工具链数据目录与 Agent 平台解耦，PAT 配置/更新备份/每日打卡/审计日志统一迁到 ~/.gpt-image-prompt/（可用 GPT_IMAGE_PROMPT_HOME 覆盖）",
     "新增：旧版 ~/.workbuddy 下的数据首次运行自动迁移（只复制不删除，旧文件保留）",
     "文档：README 去除平台绑定表述，明确本技能是标准 SKILL.md 结构，任何支持 Skill 机制的 Agent 均可加载",
@@ -14,9 +17,9 @@
   ],
   "files": {
     ".gitignore": "sha256:1177796a70a85cd0fc01151a23bce4d3140c88acd9ee90f370e23fba80c7923e",
-    "CHANGELOG.md": "sha256:28025b1ebf0928b6d2e7a2fdbf8d819899a160b6ccc2b336cd0e5413858b04ce",
-    "README.md": "sha256:654ff849fc8ec0accc8fb87ad81b0837f3029bb005f6a33afb35fd718e12369a",
-    "SKILL.md": "sha256:c4b09ca7fc8818c91c02d015247587875fb6faeb9fe618b4988aeb47580a185b",
+    "CHANGELOG.md": "sha256:5622e907a68a5e02586c1be9979bc1770ad35e09fbad46d409e5c040a7f8c982",
+    "README.md": "sha256:a2e6a880a46cda243b98561d7d1abbf3c0af2bf296c771e4ca67b20b7247a3a9",
+    "SKILL.md": "sha256:a57162e2cf7737152a519c347e689ac0d3ce731933eafce2888094b929f35876",
     "references/GPT-Image-2-提示词完整指南.md": "sha256:fe7bc9213b60b3addd12685def6967cdf6d99dc06c280de83d417f29fa83301f",
     "references/收录评估标准.md": "sha256:ab3ef47599858a5d67fc1de88e60279b9d4c1c6b3e5eb0b2c947784ec40d858e",
     "tools/__init__.py": "sha256:b04d235870a77f8bfcce7604ef5d5da725c082dad30cd47c2e6074f1d31a383d",
