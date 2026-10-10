@@ -34,6 +34,7 @@ DEFAULT_REPO = "HTBjiangnan/gpt-image-prompt"
 DEFAULT_BRANCH = "main"
 
 TIMEOUT = 15
+RAW_TIMEOUT = 8          # raw 通道在部分网络下极慢，单独限制超时（实测 16–50s/文件）
 RETRIES = 2
 PROBE_CACHE_TTL = 1800  # 通道探测结果缓存 30 分钟
 
@@ -241,10 +242,12 @@ def channel_urls(channel, repo, branch, path):
     raise ValueError("unknown channel: %s" % channel)
 
 
-# 免鉴权通道优先级。
-# 注意：jsdelivr 对分支引用有约 12 小时 CDN 缓存，可能读到**旧版本**，
-# 从而把"远端落后"误判成"本地领先"，因此排在最后，仅作兜底。
-CHANNEL_ORDER = ["raw", "api", "codeload", "jsdelivr"]
+# 免鉴权通道优先级（按实测速度排序，见 README「多通道降级」）：
+#   api       0.6s/文件，实时无缓存，匿名限流 60 次/小时 —— 默认首选
+#   codeload  0.8s 拉整包，实时，多文件更新时最优
+#   raw       本机实测 16–50s/文件（极慢且抖动），仅作兜底
+#   jsdelivr  约 12 小时 CDN 缓存，可能读到旧版本，会误导「本地领先」判定，放最后
+CHANNEL_ORDER = ["api", "codeload", "raw", "jsdelivr"]
 
 
 def probe_channel(channel, cfg):
@@ -339,7 +342,9 @@ def fetch_file(path, cfg, prefer_channel=None, only_channel=False):
                     data, err = None, "api decode: %s" % e
         else:
             url = channel_urls(ch, repo, branch, path)
-            data, err = http_get(url, cfg=cfg)
+            # raw 在某些网络环境下极慢（实测单文件 16–50s），限制其超时以免拖垮整体
+            to = RAW_TIMEOUT if ch == "raw" else TIMEOUT
+            data, err = http_get(url, cfg=cfg, timeout=to)
         if data and not err:
             return data, ch, None
         errors.append("%s -> %s" % (ch, err))
