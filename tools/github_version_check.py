@@ -32,7 +32,7 @@ VERSION_JSON_PATH = os.path.join(SKILL_ROOT, "VERSION.json")
 VERSION_REMOTE_PATH = "VERSION.json"
 
 # 每日一次联网核对的打卡文件（放在技能目录外，跨会话持久）
-STAMP_PATH = os.path.join(os.path.expanduser("~"), ".workbuddy", ".gpt_image_prompt_check_stamp.json")
+STAMP_PATH = gh.STAMP_PATH  # 由数据目录统一管理（gh_client.DATA_HOME）
 STAMP_HOUR = 0  # 每天 0 点后视为新的一天
 
 ICON = {"ok": "✅", "warn": "⚠️ ", "fail": "❌"}
@@ -49,6 +49,7 @@ def today_key():
 
 def _read_stamp():
     try:
+        gh.ensure_data_home()
         with open(STAMP_PATH, "r", encoding="utf-8") as f:
             data = json.load(f)
         return data if isinstance(data, dict) else {}
@@ -74,6 +75,7 @@ def should_check_today(retry_after=3600):
 
 def mark_checked_today(version=None, network_failed=False):
     try:
+        gh.ensure_data_home()
         os.makedirs(os.path.dirname(STAMP_PATH), exist_ok=True)
         rec = {"date": today_key(), "at": time.strftime("%Y-%m-%d %H:%M:%S"), "version": version}
         if network_failed:
